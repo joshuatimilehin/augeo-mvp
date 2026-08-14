@@ -1,0 +1,9 @@
+Flask>=2.3
+python-dotenv>=1.0
+openai>=1.0
+Pillow>=10.0
+twilio>=8.0
+requests>=2.30
+pytest>=8.0
+gunicorn>=21.0
+ImageHash>=4.3

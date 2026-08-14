@@ -1,0 +1,10 @@
+[
+  {
+    "input": "Product: Ankara gown with beads, Price: ₦15,000",
+    "output": "Oya, this beaded Ankara gown is calling your name! ₦15,000 only, e por e. DM to order now."
+  },
+  {
+    "input": "Product: Wristwatch, Price: ₦8,000",
+    "output": "Quality wristwatch, ₦8,000. Wa ra before stock finish — message us to order."
+  }
+]

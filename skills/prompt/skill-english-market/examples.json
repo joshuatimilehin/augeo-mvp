@@ -1,0 +1,10 @@
+[
+  {
+    "input": "Product: Ankara gown with beads, Price: ₦15,000",
+    "output": "Elegant beaded Ankara gown, available in sizes M, L, XL. ₦15,000. Send a message to place your order today."
+  },
+  {
+    "input": "Product: Wristwatch, Price: ₦8,000",
+    "output": "A quality wristwatch built to last. ₦8,000, limited stock available. DM to place your order."
+  }
+]
