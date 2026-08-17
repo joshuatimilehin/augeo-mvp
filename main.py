@@ -23,6 +23,7 @@ from flyer_generator import FlyerGenerator
 from layout_engine import generate_layout
 from originality import check_originality
 from safety import detect_distress, guardrail_response
+from creative.context import CustomerContext
 
 app = Flask(__name__)
 skill_registry = SkillRegistry()
@@ -155,6 +156,18 @@ def build_flyer_for_order(details: dict, graphic_skill_name: str, prompt_skill_n
         details.get('niche')
     ]))
     price_text = details.get('price', '₦0')
+    
+    customer_context = CustomerContext.from_order(
+        details=details,
+        graphic_skill_name=graphic_skill_name,
+        prompt_skill_name=prompt_skill_name,
+        category_skill_name=category_skill_name,
+        product_description=product_description,
+        price_text=price_text,
+    )
+
+    print("[creative] CustomerContext:")
+    print(customer_context)
 
     graphic_skill = skill_registry.get_graphic_skill(graphic_skill_name) or skill_registry.get_graphic_skill('skill-luxury')
     prompt_skill = skill_registry.get_prompt_skill(prompt_skill_name) or skill_registry.get_prompt_skill('skill-english-market')
