@@ -56,6 +56,34 @@ def _load_skill_taste(skill: Dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
+def _font_pairings_context(skill: Dict[str, Any]) -> str:
+    """If this skill defines a font-pairing library (skill-quotes and similar
+    typography-led skills), list the available moods so the model can choose
+    one deliberately instead of guessing at font names. Skills without
+    font_pairings (product flyers, etc.) get an empty string here and are
+    completely unaffected — this is additive, not a schema change for them."""
+    pairings = skill.get('config', {}).get('font_pairings')
+    if not isinstance(pairings, list) or not pairings:
+        return ""
+
+    moods = []
+    for p in pairings:
+        mood = p.get('mood')
+        desc = p.get('description', '')
+        if mood:
+            moods.append(f"- {mood}: {desc}")
+
+    if not moods:
+        return ""
+
+    return (
+        "## Typography mood (this skill is typography-led)\n"
+        "Choose exactly one mood from this list based on the content's tone. "
+        "Do not invent a mood name not listed here:\n"
+        + "\n".join(moods)
+    )
+
+
 def _brand_context(brand_memory: Optional[Dict[str, Any]]) -> str:
     if not brand_memory:
         return ""
@@ -90,6 +118,8 @@ renderer will draw exactly as specified.
 
 {previous_context}
 
+{typography_context}
+
 ## Output — return ONLY this JSON shape, nothing else, no markdown fences
 {{
   "background": {{"type": "gradient|solid", "colors": ["#hex", "#hex"], "direction": "vertical|horizontal|diagonal"}},
@@ -97,7 +127,8 @@ renderer will draw exactly as specified.
   "price": {{"x": int, "y": int, "size": int, "color": "#hex", "bg_shape": "none|pill|rectangle", "bg_color": "#hex"}},
   "caption": {{"x": int, "y": int, "size": int, "color": "#hex", "max_width": int, "line_height": int, "align": "left|center", "bg_shape": "none|rounded_rect", "bg_color": "#hex"}},
   "accents": [{{"type": "line|circle|rectangle", "coords": [x1, y1, x2, y2], "color": "#hex", "width": int}}],
-  "brand_mark": {{"text": "AUGEO", "x": int, "y": int, "size": int, "color": "#hex"}}
+  "brand_mark": {{"text": "AUGEO", "x": int, "y": int, "size": int, "color": "#hex"}},
+  "typography": {{"mood": "mood_key_from_list_above_or_omit_if_none_listed"}}
 }}
 
 ## Hard rules
@@ -125,6 +156,7 @@ def generate_layout(
             skill_context=_load_skill_taste(graphic_skill),
             brand_context=_brand_context(brand_memory),
             previous_context=_previous_layouts_context(previous_layouts),
+            typography_context=_font_pairings_context(graphic_skill),
         )
         user_prompt = f"Product: {product_description}\nPrice: {price}\n\nDesign a unique flyer layout."
 
@@ -141,7 +173,7 @@ def generate_layout(
         )
         raw = response.choices[0].message.content
         layout = json.loads(raw)
-        return _validate_and_clamp(layout)
+        return _validate_and_clamp(layout, graphic_skill)
     except Exception as e:
         print(f"[layout_engine] generation failed, using fallback: {e}")
         return _fallback_layout(graphic_skill)
@@ -164,7 +196,47 @@ def _clamp(value: Any, lo: int, hi: int, default: int) -> int:
     return max(lo, min(v, hi))
 
 
-def _validate_and_clamp(layout: Dict[str, Any]) -> Dict[str, Any]:
+def _resolve_typography(requested_mood: Any, graphic_skill: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Turn the model's chosen mood (a string) into the concrete font info
+    flyer_generator.py needs to actually load the font — file names,
+    per-element point sizes, and, for variable-weight fonts, which named
+    instance to select via set_variation_by_name(). Never trusts the model's
+    mood string blindly: falls back to the skill's default_mood, then to the
+    first defined pairing, then to None if the skill has no font_pairings at
+    all (product-flyer skills are unaffected and get no typography key)."""
+    config = graphic_skill.get('config', {})
+    pairings = config.get('font_pairings')
+    if not isinstance(pairings, list) or not pairings:
+        return None
+
+    by_mood = {p.get('mood'): p for p in pairings if isinstance(p, dict) and p.get('mood')}
+    default_mood = config.get('default_mood')
+
+    chosen = None
+    if isinstance(requested_mood, str) and requested_mood in by_mood:
+        chosen = by_mood[requested_mood]
+    elif default_mood in by_mood:
+        chosen = by_mood[default_mood]
+    elif pairings:
+        chosen = pairings[0]
+
+    if not chosen:
+        return None
+
+    fonts_dir = config.get('fonts_directory', 'fonts')
+
+    return {
+        "mood": chosen.get("mood"),
+        "headline_font": f"{fonts_dir}/{chosen.get('headline_font')}" if chosen.get('headline_font') else None,
+        "headline_variation": chosen.get("headline_variation"),
+        "headline_pt": chosen.get("headline_pt"),
+        "accent_font": f"{fonts_dir}/{chosen.get('accent_font')}" if chosen.get('accent_font') else None,
+        "accent_variation": chosen.get("accent_variation"),
+        "accent_pt": chosen.get("accent_pt"),
+    }
+
+
+def _validate_and_clamp(layout: Dict[str, Any], graphic_skill: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Defensive validation — never trust the model's numbers blindly."""
     out: Dict[str, Any] = {}
 
@@ -243,6 +315,13 @@ def _validate_and_clamp(layout: Dict[str, Any]) -> Dict[str, Any]:
         "color": brand_mark.get("color") if isinstance(brand_mark.get("color"), str) else "#FFFFFF64",
     }
 
+    if graphic_skill is not None:
+        typography = _resolve_typography(
+            (layout.get("typography") or {}).get("mood"), graphic_skill
+        )
+        if typography is not None:
+            out["typography"] = typography
+
     return out
 
 
@@ -284,7 +363,7 @@ def _fallback_layout(graphic_skill: Dict[str, Any]) -> Dict[str, Any]:
         element_width=photo_w, default=(80, 700)
     )
 
-    return {
+    fallback: Dict[str, Any] = {
         "background": {"type": "gradient" if len(gradient) > 1 else "solid", "colors": gradient, "direction": "vertical"},
         "photo": {
             "x": photo_x, "y": photo_y, "width": photo_w, "height": photo_h,
@@ -311,6 +390,15 @@ def _fallback_layout(graphic_skill: Dict[str, Any]) -> Dict[str, Any]:
             "y": CANVAS_SIZE - 30, "size": 14, "color": "#FFFFFF64",
         },
     }
+
+    # Fallback has no model output to read a mood from, so resolve straight
+    # to the skill's default_mood. Skills without font_pairings get nothing
+    # here, same as the LLM path.
+    typography = _resolve_typography(None, graphic_skill)
+    if typography is not None:
+        fallback["typography"] = typography
+
+    return fallback
 
 
 def _rgba_list_to_hex(value) -> Optional[str]:

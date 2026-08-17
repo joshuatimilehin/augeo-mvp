@@ -37,6 +37,43 @@ class FlyerGenerator:
             return ImageFont.truetype(font_path, size)
         return _get_system_font(size)
 
+    def _load_variable_font(self, font_path: str, size: int, variation):
+        """Load a font file and, if it's a variable-weight font and a named
+        instance was requested (e.g. 'Bold'), select that instance. Google's
+        current font distribution ships most families as a single variable
+        file rather than per-weight statics -- see layout_engine.py's
+        typography resolution. Static fonts (variation=None) just load
+        directly. If the named instance doesn't exist on this particular
+        font (declares different axis names), fall back to the font's
+        default weight rather than raising -- a wrong weight is a cosmetic
+        miss, not worth breaking flyer generation over."""
+        font = ImageFont.truetype(font_path, size)
+        if variation:
+            try:
+                font.set_variation_by_name(variation)
+            except Exception:
+                pass
+        return font
+
+    def _get_typography_font(self, layout: dict, role: str, size: int):
+        """role is 'headline' or 'accent', matching the keys layout_engine.py
+        resolves under layout['typography']. Falls back to the existing
+        config/system font path whenever there's no typography block, no
+        font file specified for that role, or the file doesn't resolve on
+        disk -- typography-led skills (skill-quotes and similar) get their
+        real font; every other skill is completely unaffected and keeps
+        using _get_font() exactly as before."""
+        typography = layout.get('typography')
+        if not typography:
+            return self._get_font(size)
+        font_path = typography.get(f'{role}_font')
+        if not font_path or not Path(font_path).exists():
+            return self._get_font(size)
+        try:
+            return self._load_variable_font(font_path, size, typography.get(f'{role}_variation'))
+        except Exception:
+            return self._get_font(size)
+
     def _wrap_text(self, draw, text: str, font, max_width: int):
         words = text.split()
         lines = []
@@ -279,8 +316,13 @@ class FlyerGenerator:
             canvas.paste(product_image, (p_x, p_y), product_image)
 
         # --- price ---
+        # Semantic note: for typography-led skills (e.g. skill-quotes) this
+        # field is repurposed as a short attribution/accent line rather than
+        # a literal price -- hence the 'accent' role mapping below. Skills
+        # without a typography block are unaffected; _get_typography_font()
+        # falls straight through to _get_font() for them.
         price = layout.get('price', {})
-        price_font = self._get_font(price.get('size', 44))
+        price_font = self._get_typography_font(layout, 'accent', price.get('size', 44))
         price_pos = (price.get('x', 80), price.get('y', 80))
         if price.get('bg_shape', 'none') != 'none':
             try:
@@ -296,8 +338,11 @@ class FlyerGenerator:
         draw.text(price_pos, price_text, fill=price.get('color', '#FFD700'), font=price_font)
 
         # --- caption ---
+        # The main wrapped text block -- the quote itself, for quote-type
+        # skills -- so it takes the 'headline' role, the dominant font in
+        # the pairing.
         caption_cfg = layout.get('caption', {})
-        caption_font = self._get_font(caption_cfg.get('size', 28))
+        caption_font = self._get_typography_font(layout, 'headline', caption_cfg.get('size', 28))
         caption_pos = (caption_cfg.get('x', 80), caption_cfg.get('y', 700))
         max_width = caption_cfg.get('max_width', 920)
         line_height = caption_cfg.get('line_height', 38)

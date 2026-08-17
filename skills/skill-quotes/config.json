@@ -1,0 +1,80 @@
+{
+  "skill_id": "skill-quotes",
+  "category": "quotes",
+  "fonts_directory": "fonts",
+  "font_loading_note": "Fonts live in the shared /fonts directory at repo root, not inside this skill folder -- other skills (church, sports, etc.) reuse the same family files rather than each bundling copies. Most families ship as single variable-weight files from Google's official repo, not per-weight statics. Load with ImageFont.truetype(path, size) then call font.set_variation_by_name(headline_variation) when headline_variation is not null. Verified working on Pillow 12.1.1. Lato and Poppins ship as separate static weight files -- headline_variation/accent_variation is null for those, load the exact filename directly.",
+  "canvas": {
+    "default_ratio": "1:1",
+    "alt_ratios": {
+      "status": "9:16",
+      "feed": "1:1"
+    }
+  },
+  "text_rules": {
+    "min_headline_pt": 24,
+    "max_line_length_chars": 42,
+    "max_fonts_per_design": 2,
+    "attribution_required": false
+  },
+  "font_pairings": [
+    {
+      "mood": "elegant_reflective",
+      "description": "Love, faith, grief, ancient-wisdom-toned quotes",
+      "headline_font": "PlayfairDisplay-Variable.ttf",
+      "headline_variation": "Bold",
+      "accent_font": "Lato-Light.ttf",
+      "accent_variation": null,
+      "headline_pt": 44,
+      "accent_pt": 20
+    },
+    {
+      "mood": "bold_motivational",
+      "description": "Sports, hustle, high-energy quotes",
+      "headline_font": "Montserrat-Variable.ttf",
+      "headline_variation": "Bold",
+      "accent_font": "Oswald-Variable.ttf",
+      "accent_variation": "Regular",
+      "headline_pt": 48,
+      "accent_pt": 22
+    },
+    {
+      "mood": "warm_everyday",
+      "description": "Appreciation, encouragement, default fallback when tone is ambiguous",
+      "headline_font": "Poppins-SemiBold.ttf",
+      "headline_variation": null,
+      "accent_font": "Poppins-Light.ttf",
+      "accent_variation": null,
+      "headline_pt": 40,
+      "accent_pt": 20
+    },
+    {
+      "mood": "editorial_literary",
+      "description": "Poetic, philosophical, longer-form quotes",
+      "headline_font": "CormorantGaramond-Variable.ttf",
+      "headline_variation": "Medium",
+      "accent_font": "Jost-Variable.ttf",
+      "accent_variation": "Regular",
+      "headline_pt": 42,
+      "accent_pt": 18,
+      "notes": "Needs generous line spacing (1.4x) and short line breaks -- do not let this pairing carry long unbroken quotes"
+    },
+    {
+      "mood": "youthful_social",
+      "description": "Casual, shareable, teen/young-adult register",
+      "headline_font": "Baloo2-Variable.ttf",
+      "headline_variation": "Bold",
+      "accent_font": "Inter-Variable.ttf",
+      "accent_variation": "Regular",
+      "headline_pt": 46,
+      "accent_pt": 20,
+      "notes": "PENDING: Baloo2 download failed on GitHub API rate limit, not yet verified in fonts/ folder"
+    }
+  ],
+  "default_mood": "warm_everyday",
+  "fallback_static_layout": {
+    "headline_position": "center",
+    "headline_max_width_pct": 80,
+    "attribution_position": "bottom_center",
+    "margin_pct": 10
+  }
+}
