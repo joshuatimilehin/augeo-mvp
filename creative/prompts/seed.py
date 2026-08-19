@@ -1,34 +1,27 @@
-from creative.prompts.library import (
-    PromptLibrary,
-    PromptRecord,
-)
+from creative.prompts.library import PromptLibrary, PromptRecord
 
 
 def create_seed_library() -> PromptLibrary:
     """
-    Create Augeo's initial prompt library.
+    Augeo's production seed prompt library.
 
-    These are controlled internal templates.
-    External prompt scraping will be added separately.
+    These prompts provide broad category coverage.
+    Discovered prompts can be added later through the
+    discovery/evolution pipeline.
     """
 
     library = PromptLibrary()
 
-    library.add(
+    prompts = [
         PromptRecord(
             id="fashion-luxury-product",
             category="fashion",
             subcategory="luxury",
             visual_style="luxury",
             language="english-market",
-            name="Luxury Product Campaign",
+            name="Luxury Fashion Product",
             source="internal",
-            tags=[
-                "fashion",
-                "luxury",
-                "product",
-                "commercial",
-            ],
+            tags=["fashion", "luxury", "product", "commercial"],
             template="""
 Create a premium commercial fashion advertisement.
 
@@ -42,7 +35,7 @@ Location:
 {location}
 
 Visual direction:
-Luxury editorial photography,
+luxury editorial photography,
 premium commercial composition,
 sophisticated lighting,
 high-end product presentation,
@@ -58,13 +51,139 @@ Headline:
 Price:
 {price}
 
-The final image should feel like a professionally
-produced premium fashion campaign.
+Make the product immediately desirable and visually premium.
 """.strip(),
-        )
-    )
+        ),
 
-    library.add(
+        PromptRecord(
+            id="retail-commercial-product",
+            category="retail",
+            subcategory="commercial",
+            visual_style="commercial",
+            language="english-market",
+            name="Retail Product Advertisement",
+            source="internal",
+            tags=["retail", "product", "commercial", "whatsapp"],
+            template="""
+Create a polished commercial advertisement for a retail business.
+
+Product:
+{product_description}
+
+Target audience:
+{audience}
+
+Location:
+{location}
+
+Visual direction:
+professional product photography,
+strong visual hierarchy,
+clean composition,
+realistic materials,
+attractive commercial lighting,
+social-media-ready presentation.
+
+Brand:
+{brand_name}
+
+Headline:
+{headline}
+
+Price:
+{price}
+
+Make the product immediately understandable, trustworthy,
+and desirable for customers.
+""".strip(),
+        ),
+
+        PromptRecord(
+            id="estate-property",
+            category="estate",
+            subcategory="property",
+            visual_style="luxury",
+            language="english-market",
+            name="Real Estate Property Advertisement",
+            source="internal",
+            tags=["estate", "real-estate", "property", "luxury"],
+            template="""
+Create a premium real estate advertisement.
+
+Property:
+{product_description}
+
+Target audience:
+{audience}
+
+Location:
+{location}
+
+Visual direction:
+luxury architectural photography,
+premium real-estate marketing,
+bright sophisticated lighting,
+elegant composition,
+high-end property presentation,
+aspirational lifestyle aesthetic.
+
+Brand:
+{brand_name}
+
+Headline:
+{headline}
+
+Price:
+{price}
+
+Make the property feel desirable, valuable,
+trustworthy, and professionally marketed.
+""".strip(),
+        ),
+
+        PromptRecord(
+            id="food-commercial",
+            category="food",
+            subcategory="commercial",
+            visual_style="commercial",
+            language="english-market",
+            name="Food Commercial",
+            source="internal",
+            tags=["food", "restaurant", "commercial", "social"],
+            template="""
+Create a highly appetizing commercial food advertisement.
+
+Product:
+{product_description}
+
+Target audience:
+{audience}
+
+Location:
+{location}
+
+Visual direction:
+professional food photography,
+appetizing presentation,
+rich realistic textures,
+controlled studio lighting,
+strong focal composition,
+premium commercial advertising aesthetic.
+
+Brand:
+{brand_name}
+
+Headline:
+{headline}
+
+Price:
+{price}
+
+Make the food immediately desirable and suitable
+for WhatsApp Status and social media marketing.
+""".strip(),
+        ),
+
         PromptRecord(
             id="church-event",
             category="church",
@@ -73,12 +192,7 @@ produced premium fashion campaign.
             language="english-market",
             name="Church Event Announcement",
             source="internal",
-            tags=[
-                "church",
-                "event",
-                "announcement",
-                "social",
-            ],
+            tags=["church", "event", "announcement", "social"],
             template="""
 Create a polished church event promotional graphic.
 
@@ -99,41 +213,33 @@ professional event-poster composition,
 readable typography,
 appropriate spiritual visual language.
 
-Church/organization:
+Church or organization:
 {brand_name}
 
 Headline:
 {headline}
 
-Date/time:
+Date or offer:
 {price}
 
-The design should communicate the event immediately
-while remaining visually sophisticated and inviting.
+Make the event immediately understandable,
+welcoming, and visually compelling.
 """.strip(),
-        )
-    )
+        ),
 
-
-    library.add(
         PromptRecord(
-            id="food-commercial",
-            category="food",
+            id="service-business",
+            category="service",
             subcategory="commercial",
-            visual_style="bold",
+            visual_style="professional",
             language="english-market",
-            name="Food Commercial",
+            name="Service Business Advertisement",
             source="internal",
-            tags=[
-                "food",
-                "restaurant",
-                "commercial",
-                "social",
-            ],
+            tags=["service", "business", "commercial", "social"],
             template="""
-Create a highly appetizing commercial food advertisement.
+Create a professional advertisement for a Nigerian service business.
 
-Product:
+Service:
 {product_description}
 
 Target audience:
@@ -143,12 +249,12 @@ Location:
 {location}
 
 Visual direction:
-professional food photography,
-appetizing presentation,
-controlled studio lighting,
-rich realistic textures,
+professional commercial design,
+clear hierarchy,
+trustworthy presentation,
+modern typography,
 strong focal composition,
-premium commercial advertising aesthetic.
+clean social-media advertising aesthetic.
 
 Brand:
 {brand_name}
@@ -156,84 +262,23 @@ Brand:
 Headline:
 {headline}
 
-Price:
+Price or offer:
 {price}
 
-The final image should make the product immediately
-desirable while maintaining a polished commercial identity.
+Make the service immediately understandable,
+credible, and compelling to potential customers.
 """.strip(),
-        )
-    )
+        ),
 
-    library.add(
-        PromptRecord(
-            id="retail-luxury-product",
-            category="retail",
-            subcategory="product",
-            visual_style="luxury",
-            language="english-market",
-            name="Luxury Retail Product",
-            source="internal",
-            tags=[
-                "retail",
-                "product",
-                "luxury",
-                "fashion",
-                "commercial",
-                "social",
-            ],
-            template="""
-Create a premium commercial retail product advertisement.
-
-Hero product:
-{product_description}
-
-Target audience:
-{audience}
-
-Location:
-{location}
-
-Visual direction:
-luxury editorial composition,
-premium commercial advertising,
-sophisticated lighting,
-clean high-end presentation,
-realistic materials and textures,
-strong product focus,
-elegant Nigerian social-commerce aesthetic.
-
-Brand:
-{brand_name}
-
-Headline:
-{headline}
-
-Price:
-{price}
-
-The product must remain the unmistakable hero.
-Create a polished, aspirational advertisement suitable
-for WhatsApp Status and social media selling.
-""".strip(),
-        )
-    )
-    library.add(
         PromptRecord(
             id="generic-commercial-product",
             category="generic",
             subcategory="commercial",
-            visual_style="luxury",
+            visual_style="commercial",
             language="english-market",
             name="Universal Commercial Product",
             source="internal",
-            tags=[
-                "generic",
-                "commercial",
-                "product",
-                "social",
-                "whatsapp",
-            ],
+            tags=["generic", "commercial", "product", "social", "whatsapp"],
             template="""
 Create a polished commercial advertisement for a Nigerian business.
 
@@ -268,59 +313,10 @@ Make the offering immediately understandable and desirable.
 The final design should feel professionally produced and
 appropriate for WhatsApp Status and social media commerce.
 """.strip(),
-        )
-    )
+        ),
+    ]
 
-    library.add(
-        PromptRecord(
-            id="generic-service",
-            category="generic-service",
-            subcategory="service",
-            visual_style="minimal",
-            language="english-market",
-            name="Universal Service Advertisement",
-            source="internal",
-            tags=[
-                "generic",
-                "service",
-                "business",
-                "professional",
-                "social",
-            ],
-            template="""
-Create a professional advertisement for a Nigerian service business.
+    for prompt in prompts:
+        library.add(prompt)
 
-Service:
-{product_description}
-
-Target audience:
-{audience}
-
-Location:
-{location}
-
-Visual direction:
-clean professional composition,
-clear information hierarchy,
-credible business presentation,
-modern typography,
-strong focal point,
-trustworthy commercial aesthetic.
-
-Brand:
-{brand_name}
-
-Headline:
-{headline}
-
-Price or offer:
-{price}
-
-Make the service immediately understandable and compelling.
-The final design should be suitable for WhatsApp Status,
-Instagram, and other social platforms.
-""".strip(),
-        )
-    )
-    
     return library
