@@ -2,7 +2,7 @@ import sqlite3
 import json
 from pathlib import Path
 from contextlib import closing
-from datetime import datetime
+from datetime import datetime, timezone
 from config import DATABASE_PATH
 
 DATABASE_PATH = Path(DATABASE_PATH)
@@ -432,8 +432,7 @@ def record_prompt_evaluation(
             (prompt_id,),
         ).fetchone()
 
-        now = datetime.utcnow().isoformat()
-
+        now = datetime.now(timezone.utc).isoformat()
         if existing:
 
             old_count = existing["times_used"]

@@ -114,6 +114,7 @@ while remaining visually sophisticated and inviting.
         )
     )
 
+
     library.add(
         PromptRecord(
             id="food-commercial",
@@ -164,4 +165,162 @@ desirable while maintaining a polished commercial identity.
         )
     )
 
+    library.add(
+        PromptRecord(
+            id="retail-luxury-product",
+            category="retail",
+            subcategory="product",
+            visual_style="luxury",
+            language="english-market",
+            name="Luxury Retail Product",
+            source="internal",
+            tags=[
+                "retail",
+                "product",
+                "luxury",
+                "fashion",
+                "commercial",
+                "social",
+            ],
+            template="""
+Create a premium commercial retail product advertisement.
+
+Hero product:
+{product_description}
+
+Target audience:
+{audience}
+
+Location:
+{location}
+
+Visual direction:
+luxury editorial composition,
+premium commercial advertising,
+sophisticated lighting,
+clean high-end presentation,
+realistic materials and textures,
+strong product focus,
+elegant Nigerian social-commerce aesthetic.
+
+Brand:
+{brand_name}
+
+Headline:
+{headline}
+
+Price:
+{price}
+
+The product must remain the unmistakable hero.
+Create a polished, aspirational advertisement suitable
+for WhatsApp Status and social media selling.
+""".strip(),
+        )
+    )
+    library.add(
+        PromptRecord(
+            id="generic-commercial-product",
+            category="generic",
+            subcategory="commercial",
+            visual_style="luxury",
+            language="english-market",
+            name="Universal Commercial Product",
+            source="internal",
+            tags=[
+                "generic",
+                "commercial",
+                "product",
+                "social",
+                "whatsapp",
+            ],
+            template="""
+Create a polished commercial advertisement for a Nigerian business.
+
+Hero offering:
+{product_description}
+
+Target audience:
+{audience}
+
+Location:
+{location}
+
+Visual direction:
+professional commercial composition,
+strong visual hierarchy,
+premium presentation,
+clean typography,
+realistic materials,
+clear product or service focus,
+social-media-ready advertising aesthetic.
+
+Brand:
+{brand_name}
+
+Headline:
+{headline}
+
+Price or offer:
+{price}
+
+Make the offering immediately understandable and desirable.
+The final design should feel professionally produced and
+appropriate for WhatsApp Status and social media commerce.
+""".strip(),
+        )
+    )
+
+    library.add(
+        PromptRecord(
+            id="generic-service",
+            category="generic-service",
+            subcategory="service",
+            visual_style="minimal",
+            language="english-market",
+            name="Universal Service Advertisement",
+            source="internal",
+            tags=[
+                "generic",
+                "service",
+                "business",
+                "professional",
+                "social",
+            ],
+            template="""
+Create a professional advertisement for a Nigerian service business.
+
+Service:
+{product_description}
+
+Target audience:
+{audience}
+
+Location:
+{location}
+
+Visual direction:
+clean professional composition,
+clear information hierarchy,
+credible business presentation,
+modern typography,
+strong focal point,
+trustworthy commercial aesthetic.
+
+Brand:
+{brand_name}
+
+Headline:
+{headline}
+
+Price or offer:
+{price}
+
+Make the service immediately understandable and compelling.
+The final design should be suitable for WhatsApp Status,
+Instagram, and other social platforms.
+""".strip(),
+        )
+    )
+    
     return library

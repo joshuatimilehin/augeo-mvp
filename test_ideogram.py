@@ -1,4 +1,10 @@
 import os
+import pytest
+
+pytest.skip(
+    "Live Ideogram API test — run with: python test_ideogram.py",
+    allow_module_level=True,
+)
 
 from dotenv import load_dotenv
 
@@ -94,24 +100,36 @@ result = provider.generate(
     prompt=prompt,
 )
 
+if __name__ == "__main__":
+    print("Creating Ideogram provider...")
+    provider = IdeogramProvider()
 
-image = result["image"]
+    print("Generating image...")
+    print("This will make one real Ideogram API request.")
 
-output_path = "output/ideogram_test.png"
+    result = provider.generate(
+        context=context,
+        prompt=prompt,
+    )
 
-os.makedirs("output", exist_ok=True)
+    print(result)
 
-image.save(output_path)
+    image = result["image"]
 
+    output_path = "output/ideogram_test.png"
 
-print()
-print("=" * 50)
-print("IDEOGRAM GENERATION SUCCESSFUL")
-print("=" * 50)
-print(f"Provider:     {result['provider']}")
-print(f"Model:        {result['model']}")
-print(f"Seed:         {result['seed']}")
-print(f"Resolution:   {result['resolution']}")
-print(f"Safe:         {result['is_image_safe']}")
-print(f"Saved to:     {output_path}")
-print("=" * 50)
+    os.makedirs("output", exist_ok=True)
+
+    image.save(output_path)
+
+    print()
+    print("=" * 50)
+    print("IDEOGRAM GENERATION SUCCESSFUL")
+    print("=" * 50)
+    print(f"Provider:     {result['provider']}")
+    print(f"Model:        {result['model']}")
+    print(f"Seed:         {result['seed']}")
+    print(f"Resolution:   {result['resolution']}")
+    print(f"Safe:         {result['is_image_safe']}")
+    print(f"Saved to:     {output_path}")
+    print("=" * 50)

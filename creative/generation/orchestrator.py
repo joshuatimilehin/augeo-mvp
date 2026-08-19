@@ -9,41 +9,58 @@ from creative.generation.pipeline import GenerationPipeline
 from creative.prompts.adaptation import PromptAdapter
 from creative.prompts.retrieval import PromptRetriever
 from creative.prompts.seed import create_seed_library
+
+
 class CreativeOrchestrator:
     """
     Coordinates Augeo's creative intelligence pipeline.
 
-    Flow:
+    Supports two paths:
 
-        CustomerContext
-            ↓
-        Prompt Retrieval
-            ↓
-        Prompt Adaptation
-            ↓
-        Image Generation
-            ↓
-        Evaluation
-            ↓
-        Prompt Learning
+        prepare()
+            CustomerContext
+                ↓
+            Prompt Retrieval
+                ↓
+            Prompt Adaptation
+                ↓
+            Final Prompt
+
+        generate()
+            CustomerContext
+                ↓
+            Prompt Retrieval
+                ↓
+            Prompt Adaptation
+                ↓
+            Image Generation
+                ↓
+            Generation Result
+
+    The prepare() path is used by Augeo's existing flyer
+    workflow so prompt intelligence can be integrated
+    without forcing an additional image generation.
     """
 
     def __init__(self):
         self.library = create_seed_library()
         self.library.sync_performance()
+
         self.retriever = PromptRetriever(
             self.library
         )
+
         self.adapter = PromptAdapter()
+
         self.generation = GenerationPipeline()
+
         self.evaluator = GenerationEvaluator(
             self.library
         )
 
-    def generate(
+    def prepare(
         self,
         context: CustomerContext,
-        **kwargs: Any,
     ) -> dict:
 
         selected_prompt = self.retriever.retrieve(
@@ -55,16 +72,28 @@ class CreativeOrchestrator:
             context,
         )
 
+        return {
+            "prompt_id": selected_prompt.id,
+            "prompt_name": selected_prompt.name,
+            "prompt_score": selected_prompt.success_score,
+            "final_prompt": final_prompt,
+        }
+
+    def generate(
+        self,
+        context: CustomerContext,
+        **kwargs: Any,
+    ) -> dict:
+
+        prepared = self.prepare(context)
+
         result = self.generation.generate(
             context=context,
-            prompt=final_prompt,
+            prompt=prepared["final_prompt"],
             **kwargs,
         )
 
-        result["prompt_id"] = selected_prompt.id
-        result["prompt_name"] = selected_prompt.name
-        result["prompt_score"] = selected_prompt.success_score
-        result["final_prompt"] = final_prompt
+        result.update(prepared)
 
         return result
 
