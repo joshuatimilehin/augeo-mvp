@@ -117,12 +117,15 @@ class PromptRetriever:
         # PERSISTENT HISTORICAL PERFORMANCE
         # -------------------------------------------------
 
+               # -------------------------------------------------
+        # PERSISTENT HISTORICAL PERFORMANCE
+        # -------------------------------------------------
+
         historical = database.get_prompt_performance(
             prompt.id
         )
 
         if historical:
-
             average_score = float(
                 historical.get("average_score") or 0.0
             )
@@ -151,32 +154,5 @@ class PromptRetriever:
                 * 4.0
             )
 
-            return score
-            # ---------------------------------------------
-            # Confidence adjustment
-            #
-            # A prompt with one observation should not
-            # completely dominate a prompt with substantial
-            # evidence.
-            #
-            # sqrt() gives diminishing returns as evidence
-            # accumulates.
-            # ---------------------------------------------
-
-            confidence = min(
-                1.0,
-                math.sqrt(times_used / 10.0),
-            )
-
-            historical_score = (
-                average_score * 0.75
-                + best_score * 0.25
-            )
-
-            score += (
-                historical_score
-                * confidence
-                * 6.0
-            )
-
         return score
+           
