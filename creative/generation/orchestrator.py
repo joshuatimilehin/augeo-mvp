@@ -9,8 +9,6 @@ from creative.generation.pipeline import GenerationPipeline
 from creative.prompts.adaptation import PromptAdapter
 from creative.prompts.retrieval import PromptRetriever
 from creative.prompts.seed import create_seed_library
-
-
 class CreativeOrchestrator:
     """
     Coordinates Augeo's creative intelligence pipeline.
@@ -32,15 +30,12 @@ class CreativeOrchestrator:
 
     def __init__(self):
         self.library = create_seed_library()
-
+        self.library.sync_performance()
         self.retriever = PromptRetriever(
             self.library
         )
-
         self.adapter = PromptAdapter()
-
         self.generation = GenerationPipeline()
-
         self.evaluator = GenerationEvaluator(
             self.library
         )

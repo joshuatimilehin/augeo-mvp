@@ -8,7 +8,7 @@ class PromptRecord:
     A reusable prompt template.
 
     Prompts are treated as assets that can be retrieved,
-    adapted, generated, and eventually scored from results.
+    adapted, generated, scored, and evolved.
     """
 
     id: str
@@ -30,19 +30,89 @@ class PromptRecord:
 
 class PromptLibrary:
     """
-    In-memory prompt library for the first implementation.
+    In-memory prompt library.
 
-    We will later replace/augment this with persistent storage.
+    Supports normal prompt registration, persistent
+    performance synchronization, and controlled promotion
+    of experimentally validated prompts.
     """
 
     def __init__(self):
         self._prompts: dict[str, PromptRecord] = {}
 
     def add(self, prompt: PromptRecord) -> None:
+        """
+        Add a prompt.
+
+        Existing prompts cannot be silently overwritten.
+        """
+
+        if prompt.id in self._prompts:
+            raise ValueError(
+                f"Prompt already exists: {prompt.id}"
+            )
+
         self._prompts[prompt.id] = prompt
 
-    def get(self, prompt_id: str) -> Optional[PromptRecord]:
+    def promote(
+        self,
+        prompt: PromptRecord,
+    ) -> PromptRecord:
+        """
+        Add an experimentally evolved prompt.
+        """
+
+        if prompt.source != "evolved":
+            raise ValueError(
+                "Only evolved prompts can be promoted."
+            )
+
+        self.add(prompt)
+
+        return prompt
+
+    def get(
+        self,
+        prompt_id: str,
+    ) -> Optional[PromptRecord]:
+
         return self._prompts.get(prompt_id)
+
+    def contains(
+        self,
+        prompt_id: str,
+    ) -> bool:
+
+        return prompt_id in self._prompts
+
+    def sync_performance(self) -> None:
+        """
+        Synchronize in-memory prompt performance with
+        persistent SQLite performance data.
+        """
+
+        import database
+
+        performance = database.get_all_prompt_performance()
+
+        for record in performance:
+            prompt = self.get(record["prompt_id"])
+
+            if not prompt:
+                continue
+
+            prompt.usage_count = int(
+                record.get("times_used") or 0
+            )
+
+            prompt.success_score = float(
+                record.get("average_score") or 0.0
+            )
+
+            prompt.success_count = round(
+                prompt.usage_count
+                * prompt.success_score
+            )
 
     def all(self) -> list[PromptRecord]:
         return list(self._prompts.values())
@@ -85,6 +155,7 @@ class PromptLibrary:
                     prompt.success_count
                     / prompt.usage_count
                 )
+
     def record_evaluation(
         self,
         prompt_id: str,
@@ -96,22 +167,22 @@ class PromptLibrary:
         if not prompt:
             return
 
-        prompt.usage_count += 1
-
         if not 0.0 <= score <= 1.0:
             raise ValueError(
                 "Prompt score must be between 0.0 and 1.0."
             )
 
-        previous_score = prompt.success_score
+        previous_usage = prompt.usage_count
 
-        if prompt.usage_count == 1:
+        prompt.usage_count += 1
+
+        if previous_usage == 0:
             prompt.success_score = score
         else:
             prompt.success_score = (
                 (
-                    previous_score
-                    * (prompt.usage_count - 1)
+                    prompt.success_score
+                    * previous_usage
                 )
                 + score
             ) / prompt.usage_count

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
+import database
+
 from creative.prompts.library import PromptLibrary
 from creative.prompts.scoring import (
     PromptEvaluation,
@@ -12,10 +14,6 @@ from creative.prompts.scoring import (
 class GenerationEvaluation:
     """
     Result of evaluating a generated creative.
-
-    The first version accepts explicit scores.
-    Later these can come from customer feedback,
-    automated visual analysis, or business outcomes.
     """
 
     prompt_id: str
@@ -28,17 +26,20 @@ class GenerationEvaluation:
 
     notes: Optional[str] = None
 
+    customer_phone: Optional[str] = None
+    flyer_id: Optional[int] = None
+
 
 class GenerationEvaluator:
     """
-    Evaluates a generation and feeds the result back
-    into the prompt intelligence system.
+    Evaluates a generation and persists the result.
+
+    The prompt definition remains in PromptLibrary.
+
+    Historical performance is persisted in SQLite.
     """
 
-    def __init__(
-        self,
-        library: PromptLibrary,
-    ):
+    def __init__(self, library: PromptLibrary):
         self.library = library
         self.scorer = PromptScorer()
 
@@ -61,6 +62,21 @@ class GenerationEvaluator:
             prompt_evaluation
         )
 
+        # Persist the learning signal.
+        database.record_prompt_evaluation(
+            prompt_id=evaluation.prompt_id,
+            score=score,
+            customer_phone=evaluation.customer_phone,
+            flyer_id=evaluation.flyer_id,
+            visual_quality=evaluation.visual_quality,
+            customer_approval=evaluation.customer_approval,
+            relevance=evaluation.relevance,
+            originality=evaluation.originality,
+            conversion_signal=evaluation.conversion_signal,
+            notes=evaluation.notes,
+        )
+
+        # Keep the in-memory library synchronized.
         self.library.record_evaluation(
             evaluation.prompt_id,
             score,

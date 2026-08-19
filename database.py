@@ -62,6 +62,35 @@ CREATE TABLE IF NOT EXISTS skill_performance (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS prompt_performance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prompt_id TEXT UNIQUE NOT NULL,
+    times_used INTEGER DEFAULT 0,
+    average_score REAL DEFAULT 0.0,
+    best_score REAL DEFAULT 0.0,
+    last_score REAL DEFAULT 0.0,
+    last_used_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS creative_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_phone TEXT,
+    prompt_id TEXT NOT NULL,
+    flyer_id INTEGER,
+    visual_quality REAL,
+    customer_approval REAL,
+    relevance REAL,
+    originality REAL,
+    conversion_signal REAL,
+    overall_score REAL,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_phone) REFERENCES customers(phone),
+    FOREIGN KEY (flyer_id) REFERENCES flyers(id)
+);
+
 CREATE TABLE IF NOT EXISTS credit_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     customer_phone TEXT,
@@ -338,3 +367,180 @@ def get_stats():
         cur = conn.execute('SELECT COUNT(*) as count FROM customers WHERE credits_remaining > 0')
         stats['customers_with_credits'] = cur.fetchone()['count']
         return stats
+
+def record_prompt_evaluation(
+    prompt_id,
+    score,
+    customer_phone=None,
+    flyer_id=None,
+    visual_quality=None,
+    customer_approval=None,
+    relevance=None,
+    originality=None,
+    conversion_signal=None,
+    notes=None,
+):
+    """
+    Persist a creative evaluation and update the prompt's
+    historical performance.
+
+    The prompt itself remains in the prompt library.
+    This table stores its observed performance.
+    """
+
+    with closing(get_connection()) as conn:
+
+        conn.execute(
+            """
+            INSERT INTO creative_evaluations (
+                customer_phone,
+                prompt_id,
+                flyer_id,
+                visual_quality,
+                customer_approval,
+                relevance,
+                originality,
+                conversion_signal,
+                overall_score,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                customer_phone,
+                prompt_id,
+                flyer_id,
+                visual_quality,
+                customer_approval,
+                relevance,
+                originality,
+                conversion_signal,
+                score,
+                notes,
+            ),
+        )
+
+        existing = conn.execute(
+            """
+            SELECT
+                times_used,
+                average_score,
+                best_score
+            FROM prompt_performance
+            WHERE prompt_id = ?
+            """,
+            (prompt_id,),
+        ).fetchone()
+
+        now = datetime.utcnow().isoformat()
+
+        if existing:
+
+            old_count = existing["times_used"]
+            old_average = existing["average_score"]
+
+            new_count = old_count + 1
+
+            new_average = (
+                (
+                    old_average * old_count
+                )
+                + score
+            ) / new_count
+
+            new_best = max(
+                existing["best_score"],
+                score,
+            )
+
+            conn.execute(
+                """
+                UPDATE prompt_performance
+                SET
+                    times_used = ?,
+                    average_score = ?,
+                    best_score = ?,
+                    last_score = ?,
+                    last_used_at = ?,
+                    updated_at = ?
+                WHERE prompt_id = ?
+                """,
+                (
+                    new_count,
+                    new_average,
+                    new_best,
+                    score,
+                    now,
+                    now,
+                    prompt_id,
+                ),
+            )
+
+        else:
+
+            conn.execute(
+                """
+                INSERT INTO prompt_performance (
+                    prompt_id,
+                    times_used,
+                    average_score,
+                    best_score,
+                    last_score,
+                    last_used_at,
+                    updated_at
+                )
+                VALUES (?, 1, ?, ?, ?, ?, ?)
+                """,
+                (
+                    prompt_id,
+                    score,
+                    score,
+                    score,
+                    now,
+                    now,
+                ),
+            )
+
+        conn.commit()
+
+
+def get_prompt_performance(prompt_id):
+    """
+    Return historical performance for one prompt.
+    """
+
+    with closing(get_connection()) as conn:
+
+        cur = conn.execute(
+            """
+            SELECT *
+            FROM prompt_performance
+            WHERE prompt_id = ?
+            """,
+            (prompt_id,),
+        )
+
+        row = cur.fetchone()
+
+        return dict(row) if row else None
+
+
+def get_all_prompt_performance():
+    """
+    Return historical performance for all prompts.
+    """
+
+    with closing(get_connection()) as conn:
+
+        cur = conn.execute(
+            """
+            SELECT *
+            FROM prompt_performance
+            ORDER BY average_score DESC
+            """
+        )
+
+        return [
+            dict(row)
+            for row in cur.fetchall()
+        ]

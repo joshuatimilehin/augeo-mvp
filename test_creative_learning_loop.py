@@ -1,3 +1,4 @@
+import database
 from dotenv import load_dotenv
 
 from creative.context import CustomerContext
@@ -7,6 +8,8 @@ from creative.generation.orchestrator import (
 
 
 load_dotenv()
+
+database.initialize_db()
 
 
 details = {
@@ -37,7 +40,7 @@ orchestrator = CreativeOrchestrator()
 
 
 print("=" * 70)
-print("AUGEO CREATIVE LEARNING LOOP")
+print("AUGEO PERSISTENT CREATIVE INTELLIGENCE TEST")
 print("=" * 70)
 
 
@@ -54,34 +57,27 @@ print()
 print("GENERATION")
 print("-" * 70)
 
-print(f"Provider:     {result['provider']}")
-print(f"Model:        {result['model']}")
 print(f"Prompt ID:    {result['prompt_id']}")
 print(f"Before score: {result['prompt_score']}")
 
 
 result["image"].save(
-    "output/learning_loop_test.png"
+    "output/persistent_learning_test.png"
 )
 
 
 # ---------------------------------------------------------
-# CUSTOMER / CREATIVE EVALUATION
+# EVALUATION
 # ---------------------------------------------------------
 
 score = orchestrator.evaluate(
     result=result,
-
     visual_quality=0.95,
     customer_approval=0.90,
     relevance=0.98,
     originality=0.85,
     conversion_signal=0.80,
-
-    notes=(
-        "Strong creative. "
-        "Customer approved the direction."
-    ),
+    notes="Strong creative. Customer approved the direction.",
 )
 
 
@@ -89,41 +85,39 @@ print()
 print("EVALUATION")
 print("-" * 70)
 
-print(f"New score:    {score:.4f}")
+print(f"Calculated score: {score:.4f}")
 
 
 # ---------------------------------------------------------
-# CHECK LIBRARY
+# DATABASE CHECK
 # ---------------------------------------------------------
 
-updated_prompt = orchestrator.library.get(
+stored = database.get_prompt_performance(
     result["prompt_id"]
 )
 
 
 print()
-print("PROMPT MEMORY")
+print("PERSISTENT MEMORY")
 print("-" * 70)
 
-print(
-    f"Prompt:       {updated_prompt.id}"
-)
-
-print(
-    f"Usage count:  {updated_prompt.usage_count}"
-)
-
-print(
-    f"Success score: "
-    f"{updated_prompt.success_score:.4f}"
-)
+if stored:
+    print(f"Prompt ID:      {stored['prompt_id']}")
+    print(f"Times used:     {stored['times_used']}")
+    print(f"Average score:  {stored['average_score']:.4f}")
+    print(f"Best score:     {stored['best_score']:.4f}")
+    print(f"Last score:     {stored['last_score']:.4f}")
+    print()
+    print("DATABASE MEMORY: GREEN")
+else:
+    print("DATABASE MEMORY: FAILED")
 
 
 print()
 print("Image saved:")
-print("output/learning_loop_test.png")
+print("output/persistent_learning_test.png")
 
 print()
 print("=" * 70)
-print("CREATIVE LEARNING LOOP SUCCESSFUL")
+print("PERSISTENT CREATIVE INTELLIGENCE TEST COMPLETE")
 print("=" * 70)
