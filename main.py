@@ -23,6 +23,8 @@ from flyer_generator import FlyerGenerator
 from layout_engine import generate_layout
 from originality import check_originality
 from safety import detect_distress, guardrail_response
+from creative.context import CustomerContext
+from creative.generation.orchestrator import CreativeOrchestrator
 
 app = Flask(__name__)
 skill_registry = SkillRegistry()
@@ -94,6 +96,66 @@ def safe_json_loads(data_str: str, default: dict = None) -> dict:
     except Exception:
         return default
 
+# ===================== LOCAL PAYMENT TEST =====================
+
+@app.route('/test/payment-success', methods=['POST'])
+def test_payment_success():
+    """
+    Development-only payment simulator.
+
+    This bypasses Paystack verification but uses the same
+    credit-accounting path as a real successful payment.
+
+    NEVER enable this endpoint in production.
+    """
+
+    if os.getenv("AUGEO_ENABLE_TEST_PAYMENTS", "").lower() != "true":
+        return jsonify({
+            "status": "error",
+            "message": "Test payment endpoint disabled."
+        }), 403
+
+    phone = request.form.get("phone")
+    pack_name = request.form.get("pack", "starter")
+
+    if not phone:
+        return jsonify({
+            "status": "error",
+            "message": "phone is required"
+        }), 400
+
+    pack = CREDIT_PACKS.get(pack_name)
+
+    if not pack:
+        return jsonify({
+            "status": "error",
+            "message": f"Unknown pack: {pack_name}"
+        }), 400
+
+    reference = f"TEST-{uuid.uuid4().hex[:12].upper()}"
+
+    add_credits(
+        phone,
+        pack["credits"],
+        pack_name=pack_name,
+        paystack_reference=reference,
+        txn_type="purchase",
+    )
+
+    update_customer(
+        phone,
+        lifetime_value_ngn=pack["price_ngn"],
+    )
+
+    return jsonify({
+        "status": "ok",
+        "test_payment": True,
+        "phone": phone,
+        "pack": pack_name,
+        "credits_added": pack["credits"],
+        "amount_ngn": pack["price_ngn"],
+        "reference": reference,
+    }), 200
 
 # ===================== PAYMENT =====================
 
@@ -145,61 +207,201 @@ def verify_paystack_signature(payload: bytes, signature: str) -> bool:
 
 
 # ===================== FLYER BUILDING =====================
+def build_flyer_for_order(
+    details: dict,
+    graphic_skill_name: str,
+    prompt_skill_name: str,
+    category_skill_name: str,
+    watermark: bool = False,
+    customer_phone: str = None,
+) -> tuple[bytes, str]:
 
-def build_flyer_for_order(details: dict, graphic_skill_name: str, prompt_skill_name: str,
-                          category_skill_name: str, watermark: bool = False,
-                          customer_phone: str = None) -> tuple[bytes, str]:
     product_description = ' '.join(filter(None, [
-        details.get('brand_name'), 
-        details.get('description'), 
-        details.get('niche')
+        details.get('brand_name'),
+        details.get('description'),
+        details.get('niche'),
     ]))
+
     price_text = details.get('price', '₦0')
 
-    graphic_skill = skill_registry.get_graphic_skill(graphic_skill_name) or skill_registry.get_graphic_skill('skill-luxury')
-    prompt_skill = skill_registry.get_prompt_skill(prompt_skill_name) or skill_registry.get_prompt_skill('skill-english-market')
+    # -------------------------------------------------
+    # CUSTOMER CONTEXT
+    # -------------------------------------------------
 
-    image = Image.new('RGB', (1080, 1080), '#FFFFFF')
+    customer_context = CustomerContext.from_order(
+        details=details,
+        graphic_skill_name=graphic_skill_name,
+        prompt_skill_name=prompt_skill_name,
+        category_skill_name=category_skill_name,
+        product_description=product_description,
+        price_text=price_text,
+    )
+
+    print("[creative] CustomerContext:")
+    print(customer_context)
+
+    # -------------------------------------------------
+    # CREATIVE INTELLIGENCE
+    # -------------------------------------------------
+
+    creative_orchestrator = CreativeOrchestrator()
+
+    creative_result = creative_orchestrator.generate(
+        customer_context
+    )
+
+    print("[creative] Prompt Intelligence:")
+    print(f"Prompt ID: {creative_result['prompt_id']}")
+    print(f"Prompt name: {creative_result['prompt_name']}")
+    print(f"Prompt score: {creative_result['prompt_score']}")
+    print(f"Final prompt:\n{creative_result['final_prompt']}")
+
+    # -------------------------------------------------
+    # SKILLS
+    # -------------------------------------------------
+
+    graphic_skill = (
+        skill_registry.get_graphic_skill(graphic_skill_name)
+        or skill_registry.get_graphic_skill('skill-luxury')
+    )
+
+    prompt_skill = (
+        skill_registry.get_prompt_skill(prompt_skill_name)
+        or skill_registry.get_prompt_skill('skill-english-market')
+    )
+
+    # -------------------------------------------------
+    # USE CREATIVE INTELLIGENCE IMAGE
+    # -------------------------------------------------
+
+    image = creative_result.get("image")
+
+    if image is None:
+        image = Image.new(
+            'RGB',
+            (1080, 1080),
+            '#FFFFFF',
+        )
+
+    # -------------------------------------------------
+    # OPTIONAL REFERENCE IMAGE
+    # -------------------------------------------------
+
     image_url = details.get('reference_image')
+
     if image_url:
         try:
-            response = requests.get(image_url, stream=True, timeout=10)
+            response = requests.get(
+                image_url,
+                stream=True,
+                timeout=10,
+            )
             response.raise_for_status()
-            image = Image.open(response.raw).convert('RGB')
-        except Exception:
-            pass
 
-    caption = generate_caption(prompt_skill, product_description, price_text)
+            reference_image = Image.open(
+                response.raw
+            ).convert('RGB')
+
+            image = reference_image
+
+        except Exception as e:
+            print(
+                f"[creative] Could not load reference image: {e}"
+            )
+
+    # -------------------------------------------------
+    # CAPTION
+    # -------------------------------------------------
+
+    caption = generate_caption(
+        prompt_skill,
+        product_description,
+        price_text,
+    )
+
+    # -------------------------------------------------
+    # FLYER GENERATION
+    # -------------------------------------------------
+
     flyer = FlyerGenerator(graphic_skill)
 
     if USE_GENERATIVE_LAYOUT and graphic_skill:
-        brand_memory = get_brand_memory(customer_phone) if customer_phone else None
-        previous_layouts = get_recent_layouts(customer_phone) if customer_phone else None
+
+        brand_memory = (
+            get_brand_memory(customer_phone)
+            if customer_phone
+            else None
+        )
+
+        previous_layouts = (
+            get_recent_layouts(customer_phone)
+            if customer_phone
+            else None
+        )
+
         layout = generate_layout(
-            product_description=product_description or 'Product for sale',
+            product_description=(
+                product_description
+                or 'Product for sale'
+            ),
             price=price_text,
             graphic_skill=graphic_skill,
             brand_memory=brand_memory,
             previous_layouts=previous_layouts,
         )
-        flyer_bytes = flyer.create_flyer_from_layout(image, caption, price_text, layout, watermark=watermark)
+
+        flyer_bytes = flyer.create_flyer_from_layout(
+            image,
+            caption,
+            price_text,
+            layout,
+            watermark=watermark,
+        )
+
     else:
+
         layout = None
-        flyer_bytes = flyer.create_flyer(image, caption, price_text, watermark=watermark)
+
+        flyer_bytes = flyer.create_flyer(
+            image,
+            caption,
+            price_text,
+            watermark=watermark,
+        )
+
+    # -------------------------------------------------
+    # ORIGINALITY + LAYOUT LEARNING
+    # -------------------------------------------------
 
     if customer_phone:
         try:
-            flyer_hash, flag = check_originality(customer_phone, flyer_bytes)
+            flyer_hash, flag = check_originality(
+                customer_phone,
+                flyer_bytes,
+            )
+
             if flag:
-                print(f"[originality] Flyer for {customer_phone} is similar to a flyer "
-                      f"from {flag['matched_customer']} (distance={flag['hamming_distance']}). Logged for review.")
-            save_layout(customer_phone, layout or {}, image_hash=flyer_hash)
+                print(
+                    f"[originality] Flyer for {customer_phone} "
+                    f"is similar to a flyer from "
+                    f"{flag['matched_customer']} "
+                    f"(distance={flag['hamming_distance']}). "
+                    f"Logged for review."
+                )
+
+            save_layout(
+                customer_phone,
+                layout or {},
+                image_hash=flyer_hash,
+            )
+
         except Exception as e:
-            print(f"Could not run originality check / save layout history: {e}")
+            print(
+                "Could not run originality check / "
+                f"save layout history: {e}"
+            )
 
     return flyer_bytes, caption
-
-
 # ===================== RETENTION MESSAGES =====================
 
 def get_low_credits_message(balance: int, graphic_skill: str = None, prompt_skill: str = None) -> str:
@@ -632,7 +834,15 @@ def generate_and_send_preview(from_number: str, customer: dict, data: dict) -> s
         return response + f"\n\nView: {BASE_URL}/output/{Path(preview_path).name}"
 
     except Exception as e:
-        print(f"Flyer generation error: {e}")
+        import traceback
+
+        print("=" * 70)
+        print("FLYER GENERATION ERROR")
+        print("=" * 70)
+        print(f"Error: {e}")
+        traceback.print_exc()
+        print("=" * 70)
+
         return "Oops, network wahala. Try again in 1 minute. 🙏"
 
 
