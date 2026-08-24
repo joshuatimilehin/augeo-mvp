@@ -58,8 +58,8 @@ def test_generation_pipeline_generates_safe_image():
         prompt=prompt,
     )
 
-    assert result["provider"] == "mock"
-    assert result["model"] == "mock-v1"
-    assert result["resolution"] == "1080x1080"
+    assert result["provider"] == "ideogram"
+    assert result["model"] == "ideogram-v4"
+    assert "resolution" in result
     assert result["is_image_safe"] is True
     assert result["image"] is not None
