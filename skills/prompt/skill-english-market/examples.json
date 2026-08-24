@@ -7,4 +7,13 @@
     "input": "Product: Wristwatch, Price: ₦8,000",
     "output": "A quality wristwatch built to last. ₦8,000, limited stock available. DM to place your order."
   }
+  ,
+  {
+    "input": "Product: Ceramic Vase, Price: £45",
+    "output": "Handcrafted ceramic vase — ideal for home styling. £45. Message us to reserve yours."
+  },
+  {
+    "input": "Product: Sneakers, Price: $79",
+    "output": "Comfortable everyday sneakers with premium cushioning. $79, available now. Buy online now."
+  }
 ]

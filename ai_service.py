@@ -2,14 +2,29 @@ import os
 from typing import Dict, Any
 
 from openai import OpenAI
-from config import OPENAI_API_KEY
+from config import OPENAI_API_KEY, KASPO_API_KEY
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+kaspo_available = bool(KASPO_API_KEY)
+if kaspo_available:
+    try:
+        from ai_clients.kaspo_client import generate_text as kaspo_generate_text
+    except Exception:
+        kaspo_available = False
 
-def generate_caption(prompt_skill: Dict[str, Any], product_description: str, price: str, language: str = 'en') -> str:
+def generate_caption(
+    prompt_skill: Dict[str, Any],
+    product_description: str,
+    price: str,
+    language: str = 'en',
+    voice_instructions: str | None = None,
+    locale: str | None = None,
+    channel: str | None = None,
+    custom_caption: str | None = None,
+) -> str:
     config = prompt_skill.get('config', {})
     system_prompt = config.get('system_prompt', (
-        'You are a marketing copywriter for Nigerian small businesses. '
+        'You are a marketing copywriter for small businesses. '
         'Write a short promotional caption with price, benefits, and a clear CTA.'
     ))
     system_prompt += (
@@ -53,11 +68,27 @@ def generate_caption(prompt_skill: Dict[str, Any], product_description: str, pri
                 f'Generate a flyer caption for this product:\n'
                 f'Product description: {product_description}\n'
                 f'Price: {price}\n'
-                f'Language: {language}\n'
-                'Output should be 1-3 short sentences suitable for a WhatsApp product flyer. Do not use quotation marks around the output.'
+                f'Language: {language or locale or "en"}\n'
+                f'Voice instructions: {voice_instructions or "friendly and professional"}\n'
+                f'Channel: {channel or "whatsapp"}\n'
+                'Output should be 1-3 short sentences suitable for a chat product flyer. Do not use quotation marks around the output.'
             ),
         },
     ]
+
+    # If a custom caption is provided by the user, trust it and return directly.
+    if custom_caption:
+        return custom_caption.strip()
+
+    # If Kaspo is configured, prefer it for caption generation
+    if kaspo_available:
+        try:
+            prompt_text = messages[0]['content'] + "\n\n" + messages[1]['content']
+            kaspo_result = kaspo_generate_text(prompt_text, max_tokens=120, temperature=0.85)
+            if kaspo_result:
+                return kaspo_result.strip()
+        except Exception:
+            pass
 
     try:
         response = client.chat.completions.create(

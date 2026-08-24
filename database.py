@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS customers (
     phone TEXT UNIQUE NOT NULL,
     name TEXT,
     business_name TEXT,
-    language_preference TEXT DEFAULT 'pidgin',
+    language_preference TEXT DEFAULT 'english-market',
     credits_remaining INTEGER DEFAULT 0,
     total_flyers_generated INTEGER DEFAULT 0,
     total_purchases INTEGER DEFAULT 0,

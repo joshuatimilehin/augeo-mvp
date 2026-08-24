@@ -23,6 +23,10 @@ def create_seed_library() -> PromptLibrary:
             source="internal",
             tags=["fashion", "luxury", "product", "commercial"],
             template="""
+Voice guidance: {voice_instructions}
+Locale: {locale}
+Channel: {channel}
+
 Create a premium commercial fashion advertisement.
 
 Hero product:
@@ -65,6 +69,10 @@ Make the product immediately desirable and visually premium.
             source="internal",
             tags=["retail", "product", "commercial", "whatsapp"],
             template="""
+Voice guidance: {voice_instructions}
+Locale: {locale}
+Channel: {channel}
+
 Create a polished commercial advertisement for a retail business.
 
 Product:
@@ -108,6 +116,10 @@ and desirable for customers.
             source="internal",
             tags=["estate", "real-estate", "property", "luxury"],
             template="""
+Voice guidance: {voice_instructions}
+Locale: {locale}
+Channel: {channel}
+
 Create a premium real estate advertisement.
 
 Property:
@@ -151,6 +163,10 @@ trustworthy, and professionally marketed.
             source="internal",
             tags=["food", "restaurant", "commercial", "social"],
             template="""
+Voice guidance: {voice_instructions}
+Locale: {locale}
+Channel: {channel}
+
 Create a highly appetizing commercial food advertisement.
 
 Product:
@@ -194,6 +210,10 @@ for WhatsApp Status and social media marketing.
             source="internal",
             tags=["church", "event", "announcement", "social"],
             template="""
+Voice guidance: {voice_instructions}
+Locale: {locale}
+Channel: {channel}
+
 Create a polished church event promotional graphic.
 
 Event:
@@ -237,6 +257,10 @@ welcoming, and visually compelling.
             source="internal",
             tags=["service", "business", "commercial", "social"],
             template="""
+Voice guidance: {voice_instructions}
+Locale: {locale}
+Channel: {channel}
+
 Create a professional advertisement for a Nigerian service business.
 
 Service:
@@ -280,6 +304,10 @@ credible, and compelling to potential customers.
             source="internal",
             tags=["generic", "commercial", "product", "social", "whatsapp"],
             template="""
+Voice guidance: {voice_instructions}
+Locale: {locale}
+Channel: {channel}
+
 Create a polished commercial advertisement for a Nigerian business.
 
 Hero offering:

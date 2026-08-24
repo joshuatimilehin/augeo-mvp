@@ -24,7 +24,6 @@ import os
 from datetime import datetime, timezone
 from contextlib import closing
 
-from twilio.rest import Client as TwilioClient
 from config import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER
 from database import get_connection
 
@@ -35,34 +34,14 @@ DAILY_FLYER_CEILING = int(os.getenv("DAILY_FLYER_CEILING", "500"))
 
 def _send_admin_alert(message: str):
     print(f"[ALERT] {message}")
-    if not ADMIN_PHONE or not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
-        return
-    try:
-        client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        client.messages.create(
-            from_=TWILIO_WHATSAPP_NUMBER,
-            to=ADMIN_PHONE,
-            body=f"⚠️ Augeo alert: {message}",
-        )
-    except Exception as e:
-        print(f"[ALERT] could not send admin WhatsApp alert: {e}")
+    # Twilio integration removed. If you want alerts via WhatsApp,
+    # implement your provider here or forward to an admin webhook.
 
 
 def check_twilio_balance():
-    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
-        return
-    try:
-        client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        balance = client.balance.fetch()
-        amount = float(balance.balance)
-        if amount < TWILIO_BALANCE_FLOOR_USD:
-            _send_admin_alert(
-                f"Twilio balance is ${amount:.2f} ({balance.currency}), "
-                f"below your ${TWILIO_BALANCE_FLOOR_USD:.2f} floor. Top up or "
-                f"messages will start failing."
-            )
-    except Exception as e:
-        print(f"[alerts] Twilio balance check failed: {e}")
+    # Twilio balance checks disabled (Twilio removed). Keep a placeholder
+    # so the alert loop remains functional without external dependencies.
+    print("[alerts] Twilio balance check skipped (disabled).")
 
 
 def check_daily_flyer_volume():

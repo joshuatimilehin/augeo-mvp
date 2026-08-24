@@ -38,12 +38,12 @@ If layouts look repetitive or ugly after this, the fix is almost always
 in the skill's `SKILL.md` — tighten `forbidden`/`required` or add more
 specific `layout_rules`, not in `layout_engine.py` itself.
 
-## 3. Wire and test Twilio for real
+## 3. Wire and test messaging for real (Kaspo or your provider)
 
-- [ ] Add real `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER` to `.env`
-- [ ] Send yourself a test message through the sandbox WhatsApp number Twilio gives you
-- [ ] Confirm a message you send to that number reaches your local `/whatsapp` webhook (use ngrok or similar to expose localhost, set the webhook URL in Twilio's console)
-- [ ] Walk through the full flow yourself: `order` → send a photo → enter price/sizes/delivery → pick style → pick language → receive watermarked preview
+- [ ] Add `KASPO_API_KEY` and `KASPO_BASE_URL` to `.env` (or configure your preferred messaging gateway).
+- [ ] Configure `IMAGE_PROVIDER=ideogram` (default) unless you explicitly want an alternative.
+- [ ] Send a test message using your messaging provider's sandbox/webhook and confirm messages posted to `/whatsapp` are received by the app (use ngrok or similar to expose localhost).
+- [ ] Walk through the full flow yourself: `order` → send a photo → enter price/sizes/delivery → pick style → receive watermarked preview (captions are English by default; users may provide custom caption text).
 - [ ] Reply `privacy` and `terms` — confirm you get the links and they resolve (needs `BASE_URL` set to your public URL, not `localhost`)
 
 ## 4. Wire and test Paystack for real

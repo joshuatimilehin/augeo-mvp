@@ -41,7 +41,7 @@ exact specs in your Kimi transcript:
   `config.json` matching your original numbers exactly, plus a new
   `SKILL.md` with the actual taste rules (forbidden/required elements,
   tone) that the layout engine now reads as design constraints.
-- 3 language skills (Pidgin, English-market, Yoruba-mix) — each with
+- 1 language skill (English-market) — with
   `config.json`, `vocabulary.json`, `constraints.json`, `examples.json`.
 - 4 category skills (fashion, beauty, food, retail) — lightweight, since
   your code only uses these for the niche label right now.
@@ -124,7 +124,7 @@ From your ops console, still outstanding:
   distress keywords, redirect warmly instead of pushing flyer questions)
 - Agent 2 spend/balance alarms (OpenAI spend cap, Twilio balance floor)
 - `skill-church`, `skill-sports` category skills
-- Real Twilio/Paystack keys wired and tested (still demo-credits only)
+-- Real messaging gateway/Paystack keys wired and tested (still demo-credits only). Configure `KASPO_API_KEY` / `KASPO_BASE_URL` or your preferred messaging provider. Ideogram remains the default image provider (`IMAGE_PROVIDER=ideogram`).
 
 Say the word and I'll do the guardrail + alarms next — they're the two
 your ops console flagged as highest-risk to ship without.

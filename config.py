@@ -6,9 +6,15 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
+
+# Kaspo image provider
+KASPO_API_KEY = os.getenv("KASPO_API_KEY")
+KASPO_BASE_URL = os.getenv("KASPO_BASE_URL")
+
+# Twilio removed — messages are logged locally by default
+TWILIO_ACCOUNT_SID = None
+TWILIO_AUTH_TOKEN = None
+TWILIO_WHATSAPP_NUMBER = None
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 DATABASE_PATH = os.getenv("DATABASE_PATH", BASE_DIR / "database.db")
 SKILLS_PATH = Path(os.getenv("SKILLS_PATH", BASE_DIR / "skills"))

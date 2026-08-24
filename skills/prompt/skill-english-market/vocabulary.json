@@ -1,5 +1,25 @@
 {
-  "quality": ["premium", "quality", "authentic", "well-made"],
-  "urgency": ["limited stock", "order today", "available now"],
-  "call_to_action": ["Order now", "Send a message to order", "DM to place your order"]
+  "quality": ["premium", "quality", "authentic", "well-made", "top-quality"],
+  "urgency": ["limited stock", "order today", "available now", "while stocks last"],
+  "call_to_action": [
+    "Order now",
+    "Send a message to order",
+    "DM to place your order",
+    "Message us to reserve",
+    "Buy online now"
+  ],
+  "region_phrases": {
+    "US": ["ships nationwide", "limited-time offer"],
+    "UK": ["available across the UK", "while stocks last"],
+    "AU": ["available Australia-wide", "order today"],
+    "IN": ["limited stock in Delhi", "order now"],
+    "NG": ["nationwide delivery", "order today"]
+  }
+  ,
+  "voice_templates": {
+    "friendly": "Warm, helpful, slightly informal — use contractions and friendly CTAs.",
+    "professional": "Polished and formal — no contractions, clear and authoritative.",
+    "humorous": "Light, witty, and brief — one playful line is fine, avoid sarcasm that could confuse customers.",
+    "youthful": "Energetic, punchy, emoji-optional, short sentences."
+  }
 }
