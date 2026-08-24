@@ -124,7 +124,7 @@ From your ops console, still outstanding:
   distress keywords, redirect warmly instead of pushing flyer questions)
 - Agent 2 spend/balance alarms (OpenAI spend cap, Twilio balance floor)
 - `skill-church`, `skill-sports` category skills
-- Real Twilio/Paystack keys wired and tested (still demo-credits only)
+-- Real messaging gateway/Paystack keys wired and tested (still demo-credits only). Configure `KASPO_API_KEY` / `KASPO_BASE_URL` or your preferred messaging provider. Ideogram remains the default image provider (`IMAGE_PROVIDER=ideogram`).
 
 Say the word and I'll do the guardrail + alarms next — they're the two
 your ops console flagged as highest-risk to ship without.

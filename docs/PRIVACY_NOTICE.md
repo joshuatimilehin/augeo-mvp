@@ -43,11 +43,11 @@ Under the Nigeria Data Protection Act (NDPA), you can ask us to:
 
 ## Third parties we work with
 
-- **Twilio** — delivers WhatsApp messages
+- **Messaging provider (Kaspo or equivalent)** — optional: delivers WhatsApp messages and media links. Configure `KASPO_API_KEY` and `KASPO_BASE_URL` or your chosen gateway in production. If you use a third-party messaging service, that provider will see the phone numbers and message content necessary to deliver messages.
 - **Paystack** — processes payments
 - **OpenAI** — generates captions and flyer layouts from the details you provide
 
-Each of these providers has its own privacy practices for the data that passes through their systems.
+Each of these providers has its own privacy practices for the data that passes through their systems. We only store the transaction reference and amount from Paystack; we log messages and phone numbers for delivery and support. If you integrate a messaging provider that retains content, include that in your privacy planning.
 
 ## Contact
 
