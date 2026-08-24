@@ -26,8 +26,14 @@ class CustomerContext:
     language: Optional[str]
     visual_style: Optional[str]
 
-    intent: Optional[str]
-    occasion: Optional[str]
+    # Optional prompt metadata (defaults provided for backwards compatibility)
+    brand_voice: Optional[str] = None
+    locale: Optional[str] = None
+    currency: Optional[str] = None
+    channel: Optional[str] = 'whatsapp'
+
+    intent: Optional[str] = None
+    occasion: Optional[str] = None
 
     @classmethod
     def from_order(
@@ -65,6 +71,11 @@ class CustomerContext:
 
             language=prompt_skill_name.replace("skill-", ""),
             visual_style=graphic_skill_name.replace("skill-", ""),
+
+            brand_voice=details.get("brand_voice") or details.get("voice") or None,
+            locale=details.get("locale") or None,
+            currency=details.get("currency") or None,
+            channel=details.get("channel") or 'whatsapp',
 
             intent=details.get("intent"),
             occasion=details.get("occasion"),

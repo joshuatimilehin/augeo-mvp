@@ -1,6 +1,5 @@
 {
   "forbidden": [
-    "slang or Pidgin phrases",
     "excessive exclamation marks (max 1)",
     "unverifiable superlative claims"
   ],
@@ -8,6 +7,7 @@
     "Always include the price exactly as given",
     "Keep to 1-3 short sentences",
     "End with a clear call to action",
-    "No quotation marks around the output"
+    "No quotation marks around the output",
+    "Respect local spelling and number/currency formats when market is known; otherwise use neutral international English"
   ]
 }

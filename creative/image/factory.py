@@ -18,7 +18,7 @@ def get_image_provider() -> ImageGenerationProvider:
 
     provider_name = os.getenv(
         "IMAGE_PROVIDER",
-        "mock",
+        "ideogram",
     ).strip().lower()
 
     if provider_name == "mock":
@@ -29,6 +29,10 @@ def get_image_provider() -> ImageGenerationProvider:
 
     if provider_name == "legacy":
         return LegacyImageProvider()
+
+    # Kaspo is not an image provider in this configuration; Ideogram
+    # remains the primary image generator. Kaspo is used for text and
+    # messaging (see ai_clients/kaspo_client.py).
 
     raise ValueError(
         f"Unsupported IMAGE_PROVIDER: {provider_name}"

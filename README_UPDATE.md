@@ -41,7 +41,7 @@ exact specs in your Kimi transcript:
   `config.json` matching your original numbers exactly, plus a new
   `SKILL.md` with the actual taste rules (forbidden/required elements,
   tone) that the layout engine now reads as design constraints.
-- 3 language skills (Pidgin, English-market, Yoruba-mix) — each with
+- 1 language skill (English-market) — with
   `config.json`, `vocabulary.json`, `constraints.json`, `examples.json`.
 - 4 category skills (fashion, beauty, food, retail) — lightweight, since
   your code only uses these for the niche label right now.

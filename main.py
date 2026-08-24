@@ -10,8 +10,7 @@ from pathlib import Path
 from datetime import datetime
 
 from flask import Flask, request, jsonify, send_file
-from twilio.rest import Client
-from twilio.twiml.messaging_response import MessagingResponse
+# Twilio removed: outgoing messages are logged or handled by external webhook
 from PIL import Image, ImageDraw, ImageFont
 
 from alerts import run_all_checks
@@ -70,15 +69,24 @@ def save_flyer_bytes(flyer_bytes: bytes, prefix: str, suffix: str = '.jpg') -> s
     return str(path)
 
 
-def send_whatsapp_message(to_number: str, message: str) -> None:
-    if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER]):
-        print(f"[WOULD SEND] {to_number}: {message[:100]}...")
-        return
+def send_whatsapp_message(to_number: str, message: str, media_url: str | None = None) -> None:
+    # Prefer Kaspo messaging if configured; otherwise log.
     try:
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        client.messages.create(body=message, from_=TWILIO_WHATSAPP_NUMBER, to=to_number)
+        from ai_clients.kaspo_client import send_message as kaspo_send_message
+    except Exception:
+        kaspo_send_message = None
+
+    if kaspo_send_message:
+        ok = kaspo_send_message(to_number, message, media_url=media_url)
+        if ok:
+            print(f"[kaspo] message sent to {to_number}")
+            return
+
+    # Fallback: log the outgoing message and media link
+    try:
+        print(f"[OUTGOING MESSAGE] to={to_number} msg={message} media={media_url}")
     except Exception as e:
-        print(f"Twilio error: {e}")
+        print(f"Message log error: {e}")
 
 
 def extract_reference(text: str) -> str:
@@ -313,10 +321,17 @@ def build_flyer_for_order(
     # CAPTION
     # -------------------------------------------------
 
+    # If the order includes a user-provided caption (e.g., quote or custom text), prefer it.
+    custom_caption = details.get('caption') or details.get('custom_caption') or None
+
     caption = generate_caption(
         prompt_skill,
         product_description,
         price_text,
+        voice_instructions=customer_context.brand_voice,
+        locale=customer_context.location or customer_context.locale,
+        channel=customer_context.language or customer_context.visual_style,
+        custom_caption=custom_caption,
     )
 
     # -------------------------------------------------
@@ -501,18 +516,16 @@ def whatsapp_webhook():
     if detect_distress(body):
         response_text = guardrail_response()
         log_conversation(from_number, 'outgoing', 'distress_guardrail', response_text)
-        twilio_response = MessagingResponse()
-        twilio_response.message(response_text)
-        return str(twilio_response)
+        return response_text, 200, {'Content-Type': 'text/plain'}
 
     parsed = parse_incoming_message(body)
     response_text = handle_message(from_number, body, parsed, customer, media_url, num_media)
 
     log_conversation(from_number, 'outgoing', 'text', response_text)
 
-    twilio_response = MessagingResponse()
-    twilio_response.message(response_text)
-    return str(twilio_response)
+    # Return plain text response. Configure your messaging gateway to
+    # use this body or replace with a provider-specific reply format.
+    return response_text, 200, {'Content-Type': 'text/plain'}
 
 
 def handle_message(from_number: str, body: str, parsed: dict, customer: dict, media_url: str, num_media: int) -> str:
@@ -524,18 +537,18 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
     # Global commands
     if intent == 'help':
         return (
-            "Welcome to Augéo! 🎨 I create professional flyers for Nigerian sellers.\n\n"
+            "Hi — I'm Augeo, your creative assistant. I turn product photos into polished, sales-ready flyers — fast and fuss-free.\n\n"
             "How it works:\n"
             "1. Send a product photo\n"
-            "2. Tell me price, sizes, delivery\n"
-            "3. Pick your style & language\n"
-            "4. I send a preview — pay to unlock HD\n\n"
-            "Pricing:\n"
+            "2. Tell me price, sizes and delivery\n"
+            "3. Pick a style\n"
+            "4. I send a preview — pay only if you love the final HD files\n\n"
+            "Pricing (examples):\n"
             "• 10 flyers — ₦3,000\n"
             "• 25 flyers — ₦6,500 (save ₦1,000)\n"
             "• 60 flyers — ₦15,000 (save ₦3,000)\n\n"
-            "Reply with 'order' to start, or 'balance' to check credits.\n\n"
-            "Reply 'privacy' or 'terms' for how we handle your data and our refund policy."
+            "Reply 'order' to start, or 'balance' to check credits.\n\n"
+            "Reply 'privacy' or 'terms' for full details on data and refunds."
         )
 
     if intent == 'balance':
@@ -578,16 +591,16 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
                 update_customer(from_number, conversation_state='collect_details', 
                                conversation_data=json.dumps({'reference_image': media_url}))
                 return (
-                    "Sis! I can turn that into a professional flyer 📸\n\n"
+                    "Nice photo — I can turn that into a polished flyer. 📸\n\n"
                     "Reply with:\n"
                     "1. Price (e.g., ₦15,000)\n"
                     "2. Sizes available (e.g., M, L, XL)\n"
                     "3. Delivery info (e.g., Same day Lagos)\n\n"
-                    "Send all 3 in one message."
+                    "Send all three in one message."
                 )
             return (
-                "Welcome! Send a product photo and I will create a flyer for you.\n\n"
-                "Or reply with your price, sizes, and delivery info to get started."
+                "Hello! Send a product photo and I'll design a flyer for you — quick, professional, and friendly.\n\n"
+                "Prefer to type details? Reply with price, sizes, and delivery info to get started."
             )
 
         update_customer(from_number, conversation_state='collect_details', conversation_data='{}')
@@ -616,13 +629,13 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
 
         update_customer(from_number, conversation_state='pick_style', conversation_data=json.dumps(data))
         return (
-            "Got it! Now pick your vibe:\n\n"
-            "1. 🔥 Bold & Energetic (fast fashion, streetwear)\n"
-            "2. ✨ Luxury & Elegant (premium items, beauty)\n"
-            "3. ⚡ Urgency & Sale (flash sales, limited stock)\n"
-            "4. 🎉 Festive (holidays, celebrations)\n"
-            "5. 📋 Minimal (corporate, church, professional)\n\n"
-            "Reply 1, 2, 3, 4, or 5."
+            "Great — which design vibe fits this product?\n\n"
+            "1. 🔥 Bold & Energetic — punchy, street-focused\n"
+            "2. ✨ Luxury & Elegant — premium, refined\n"
+            "3. ⚡ Urgency & Sale — fast-moving, conversion-led\n"
+            "4. 🎉 Festive — celebratory, colorful\n"
+            "5. 📋 Minimal — clean, professional\n\n"
+            "Reply 1–5."
         )
 
     if state == 'pick_style':
@@ -638,17 +651,13 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
         update_customer(from_number, conversation_state='pick_language', conversation_data=json.dumps(data))
         return (
             "Nice choice! Now pick the language for your caption:\n\n"
-            "1. 🇳🇬 Pidgin (Lagos street style)\n"
-            "2. 🇬🇧 English (direct & clear)\n"
-            "3. 🎭 Yoruba mix (Southwest flavor)\n\n"
-            "Reply 1, 2, or 3."
+            "1. 🇬🇧 English (direct & clear)\n\n"
+            "Reply 1."
         )
 
     if state == 'pick_language':
         lang_map = {
-            '1': 'skill-pidgin', 'pidgin': 'skill-pidgin', 'nigeria': 'skill-pidgin',
-            '2': 'skill-english-market', 'english': 'skill-english-market', 'eng': 'skill-english-market',
-            '3': 'skill-yoruba-mix', 'yoruba': 'skill-yoruba-mix', 'yo': 'skill-yoruba-mix',
+            '1': 'skill-english-market', 'english': 'skill-english-market', 'eng': 'skill-english-market',
         }
         chosen = lang_map.get(text.lower().strip(), 'skill-english-market')
         data['prompt_skill'] = chosen
@@ -816,22 +825,12 @@ def generate_and_send_preview(from_number: str, customer: dict, data: dict) -> s
         else:
             update_customer(from_number, conversation_state='idle', conversation_data='{}')
 
-        # Send the image via Twilio
-        if all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER]):
-            try:
-                client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-                media_url = f"{BASE_URL}/output/{Path(preview_path).name}"
-                client.messages.create(
-                    body=response,
-                    from_=TWILIO_WHATSAPP_NUMBER,
-                    to=from_number,
-                    media_url=[media_url]
-                )
-                return ""  # Image already sent
-            except Exception as e:
-                print(f"Twilio media error: {e}")
+        # Log media link and return the response with a view URL. Integrate
+        # a messaging provider here if you want automatic media delivery.
+        media_url = f"{BASE_URL}/output/{Path(preview_path).name}"
+        print(f"[MEDIA READY] {media_url}")
 
-        return response + f"\n\nView: {BASE_URL}/output/{Path(preview_path).name}"
+        return response + f"\n\nView: {media_url}"
 
     except Exception as e:
         import traceback
