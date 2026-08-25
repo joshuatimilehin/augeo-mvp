@@ -38,3 +38,5 @@ BRAND_MEMORY_THRESHOLD = 3
 # Generative layout engine — set to "false" in .env to force the static
 # config.json layouts (e.g. if the OpenAI key is unavailable/unreliable)
 USE_GENERATIVE_LAYOUT = os.getenv("USE_GENERATIVE_LAYOUT", "true").lower() != "false"
+
+IDEOGRAM_API_KEY = os.getenv('IDEOGRAM_API_KEY')
