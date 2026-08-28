@@ -5,11 +5,12 @@ import os
 import re
 import requests
 import threading
+import time
 import uuid
 from pathlib import Path
 from datetime import datetime
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, Response, request, jsonify, send_file
 # Twilio removed: outgoing messages are logged or handled by external webhook
 from PIL import Image, ImageDraw, ImageFont
 
@@ -24,11 +25,14 @@ from originality import check_originality
 from safety import detect_distress, guardrail_response
 from creative.context import CustomerContext
 from creative.generation.orchestrator import CreativeOrchestrator
+from creative.brand.manager import BrandManager
+import database as database_module
 from social_agent import CAPABILITIES, SocialAgent
 
 app = Flask(__name__)
 skill_registry = SkillRegistry()
 social_agent = SocialAgent()
+brand_manager = BrandManager(database_module)
 initialize_db()
 
 # ===================== UTILITIES =====================
@@ -536,7 +540,7 @@ def agent_capabilities():
     return jsonify({
         'name': 'Augeo Social Agent',
         'capabilities': list(CAPABILITIES),
-        'usage': 'Tag Augeo and ask for a caption, UGC script, explanation, content plan, image, or flyer.',
+        'usage': 'Tag Augeo for a design, UGC script, launch-video brief, caption, or content plan.',
     })
 
 
@@ -549,8 +553,68 @@ def agent_execute():
         return jsonify({'error': 'instruction is required'}), 400
     parsed = social_agent.classify(instruction)
     if not parsed:
-        return jsonify({'error': 'Ask for a caption, UGC, explanation, plan, image, or flyer.'}), 400
-    return jsonify(social_agent.execute(parsed, payload.get('context')))
+        return jsonify({'error': 'Ask for a design, UGC script, launch video, caption, or content plan.'}), 400
+    context = dict(payload.get('context') or {})
+    customer_phone = context.pop('customer_phone', None)
+    if customer_phone and 'brand' not in context:
+        context['brand'] = brand_manager.build_creative_context(str(customer_phone))
+    result = social_agent.execute(parsed, context)
+    if customer_phone and result.get('status') == 'submitted':
+        video_id = result.get('video', {}).get('video_id')
+        if video_id:
+            start_video_progress_tracking(str(customer_phone), video_id)
+    return jsonify(result)
+
+
+@app.route('/agent/video/<video_id>', methods=['GET'])
+def video_status(video_id: str):
+    try:
+        return jsonify(social_agent.video_service.status(video_id))
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 502
+
+
+@app.route('/agent/video/<video_id>/content', methods=['GET'])
+def video_content(video_id: str):
+    try:
+        provider_response = social_agent.video_service.download(video_id)
+        return Response(
+            provider_response.iter_content(chunk_size=64 * 1024),
+            content_type=provider_response.headers.get('Content-Type', 'video/mp4'),
+            headers={'Content-Disposition': f'inline; filename="{video_id}.mp4"'},
+        )
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 502
+
+
+def start_video_progress_tracking(customer_phone: str, video_id: str) -> None:
+    """Keep the existing WhatsApp customer informed while an async render runs."""
+    def watch() -> None:
+        last_progress = -1
+        for _ in range(90):  # 30 minutes at a 20-second cadence
+            try:
+                job = social_agent.video_service.status(video_id)
+            except Exception:
+                return
+            status = str(job.get('status', '')).upper()
+            progress = int(job.get('progress') or 0)
+            if progress >= last_progress + 25:
+                send_whatsapp_message(customer_phone, f"Your video is rendering — {progress}% complete.")
+                last_progress = progress
+            if status in {'COMPLETED', 'SUCCEEDED'}:
+                send_whatsapp_message(
+                    customer_phone,
+                    "Your product video is ready.",
+                    media_url=f"{BASE_URL}/agent/video/{video_id}/content",
+                )
+                return
+            if status in {'FAILED', 'CANCELLED'}:
+                send_whatsapp_message(customer_phone, "Your video could not be rendered. Reply with a new product photo and I’ll try again.")
+                return
+            time.sleep(20)
+
+    worker = threading.Thread(target=watch, daemon=True, name=f"video-{video_id[:12]}")
+    worker.start()
 
 
 def handle_message(from_number: str, body: str, parsed: dict, customer: dict, media_url: str, num_media: int) -> str:
@@ -563,9 +627,17 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
     # Visual work still uses the proven asset-and-details flyer flow.
     social_request = social_agent.classify(text)
     if social_request and state == 'idle':
-        result = social_agent.execute(social_request)
+        result = social_agent.execute(
+            social_request,
+            {'channel': 'whatsapp', 'brand': brand_manager.build_creative_context(from_number)},
+        )
         if result['status'] == 'ready':
             return result['content']
+        if result['status'] == 'submitted':
+            video_id = result.get('video', {}).get('video_id')
+            if video_id:
+                start_video_progress_tracking(from_number, video_id)
+            return result['message']
         if num_media > 0:
             update_customer(from_number, conversation_state='collect_details',
                             conversation_data=json.dumps({'reference_image': media_url}))
