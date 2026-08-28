@@ -16,9 +16,11 @@ class Artifact:
         return Path(self.path).exists()
 
     def as_dict(self) -> dict[str, Any]:
+        normalized_path = Path(self.path).as_posix()
+
         return {
             "artifact_type": self.artifact_type,
-            "path": self.path,
+            "path": normalized_path,
             "metadata": self.metadata,
             "exists": self.exists,
         }

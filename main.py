@@ -24,9 +24,11 @@ from originality import check_originality
 from safety import detect_distress, guardrail_response
 from creative.context import CustomerContext
 from creative.generation.orchestrator import CreativeOrchestrator
+from social_agent import CAPABILITIES, SocialAgent
 
 app = Flask(__name__)
 skill_registry = SkillRegistry()
+social_agent = SocialAgent()
 initialize_db()
 
 # ===================== UTILITIES =====================
@@ -528,11 +530,47 @@ def whatsapp_webhook():
     return response_text, 200, {'Content-Type': 'text/plain'}
 
 
+@app.route('/agent/capabilities', methods=['GET'])
+def agent_capabilities():
+    """Discovery for WhatsApp, web, or future comment/tag adapters."""
+    return jsonify({
+        'name': 'Augeo Social Agent',
+        'capabilities': list(CAPABILITIES),
+        'usage': 'Tag Augeo and ask for a caption, UGC script, explanation, content plan, image, or flyer.',
+    })
+
+
+@app.route('/agent/execute', methods=['POST'])
+def agent_execute():
+    """Platform-neutral entry point for a social mention or direct message."""
+    payload = request.get_json(silent=True) or {}
+    instruction = str(payload.get('instruction', '')).strip()
+    if not instruction:
+        return jsonify({'error': 'instruction is required'}), 400
+    parsed = social_agent.classify(instruction)
+    if not parsed:
+        return jsonify({'error': 'Ask for a caption, UGC, explanation, plan, image, or flyer.'}), 400
+    return jsonify(social_agent.execute(parsed, payload.get('context')))
+
+
 def handle_message(from_number: str, body: str, parsed: dict, customer: dict, media_url: str, num_media: int) -> str:
     intent = parsed['intent']
     text = parsed['text']
     state = customer.get('conversation_state') or 'idle'
     data = safe_json_loads(customer.get('conversation_data'))
+
+    # Let a tagged, natural-language request skip the legacy questionnaire.
+    # Visual work still uses the proven asset-and-details flyer flow.
+    social_request = social_agent.classify(text)
+    if social_request and state == 'idle':
+        result = social_agent.execute(social_request)
+        if result['status'] == 'ready':
+            return result['content']
+        if num_media > 0:
+            update_customer(from_number, conversation_state='collect_details',
+                            conversation_data=json.dumps({'reference_image': media_url}))
+            return "Got the photo. Reply with price, sizes, and delivery, all in one message."
+        return result['message']
 
     # Global commands
     if intent == 'help':
