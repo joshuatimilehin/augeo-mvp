@@ -40,3 +40,18 @@ BRAND_MEMORY_THRESHOLD = 3
 USE_GENERATIVE_LAYOUT = os.getenv("USE_GENERATIVE_LAYOUT", "true").lower() != "false"
 
 IDEOGRAM_API_KEY = os.getenv('IDEOGRAM_API_KEY')
+OPENAI_VIDEO_MODEL = os.getenv("OPENAI_VIDEO_MODEL", "sora-2")
+VIDEO_PROVIDER = os.getenv("VIDEO_PROVIDER", "runway")
+RUNWAYML_API_SECRET = os.getenv("RUNWAYML_API_SECRET")
+RUNWAY_VIDEO_MODEL = os.getenv("RUNWAY_VIDEO_MODEL", "gen4.5")
+
+# Creative video providers
+SEEDANCE_API_KEY = os.getenv("SEEDANCE_API_KEY")
+SEEDANCE_BASE_URL = os.getenv(
+    "SEEDANCE_BASE_URL",
+    "https://www.seeddance.io",
+)
+SEEDANCE_MODEL = os.getenv(
+    "SEEDANCE_MODEL",
+    "seedance-2.0",
+)
