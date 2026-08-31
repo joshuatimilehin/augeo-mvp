@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .business import BusinessProfile
+from .business import BusinessContentDecisionEngine
 
 
 @dataclass
@@ -18,65 +18,90 @@ class ContentIdea:
 
 
 class ContentPlanner:
-    """Turns business context into a practical creative content plan."""
+    """Turns business context into a practical multi-format creative plan."""
+
+    def __init__(
+        self,
+        decision_engine: BusinessContentDecisionEngine | None = None,
+    ) -> None:
+        self.decision_engine = (
+            decision_engine or BusinessContentDecisionEngine()
+        )
 
     def plan(
         self,
-        business: BusinessProfile,
+        business: Any,
         *,
         quantity: int = 5,
         objective: str = "grow awareness and sales",
+        available_assets: list[str] | None = None,
+        channels: list[str] | None = None,
     ) -> list[ContentIdea]:
 
-        ideas = [
-            ContentIdea(
-                content_type="product_hero",
-                objective="Showcase the product clearly",
-                channel="social",
-                production=["image"],
-                rationale="Every product-led business needs strong visual product presentation.",
-                priority=1,
-            ),
-            ContentIdea(
-                content_type="ugc",
-                objective="Build trust and relatability",
-                channel="short_video",
-                production=["script", "video", "audio"],
-                rationale="UGC makes the product feel demonstrated rather than merely advertised.",
-                priority=2,
-            ),
-            ContentIdea(
-                content_type="educational",
-                objective="Teach the audience something useful",
-                channel="social",
-                production=["script", "image", "copy"],
-                rationale="Educational content gives the business value beyond direct promotion.",
-                priority=3,
-            ),
-            ContentIdea(
-                content_type="product_demo",
-                objective="Demonstrate product value",
-                channel="short_video",
-                production=["script", "video", "audio"],
-                rationale="Demonstration reduces uncertainty around the product.",
-                priority=4,
-            ),
-            ContentIdea(
-                content_type="promotional",
-                objective="Drive conversion",
-                channel="social",
-                production=["image", "copy"],
-                rationale="Promotional creative creates a direct path from attention to purchase.",
-                priority=5,
-            ),
-            ContentIdea(
-                content_type="brand_story",
-                objective="Build brand affinity",
-                channel="social",
-                production=["script", "image", "audio"],
-                rationale="A business becomes more memorable when its story is communicated consistently.",
-                priority=6,
-            ),
-        ]
+        business_data = {
+            "name": getattr(business, "name", None),
+            "description": getattr(business, "description", None),
+            "category": getattr(business, "category", None),
+            "location": getattr(business, "location", None),
+            "audience": getattr(business, "audience", None),
+            "products": getattr(business, "products", None),
+        }
 
-        return sorted(ideas, key=lambda item: item.priority)[:quantity]
+        business_data = {
+            key: value
+            for key, value in business_data.items()
+            if value is not None
+        }
+
+        decisions = self.decision_engine.decide(
+            business=business_data,
+            objective=objective,
+            available_assets=available_assets,
+            channels=channels,
+        )
+
+        ideas: list[ContentIdea] = []
+
+        for index, decision in enumerate(decisions[:quantity], start=1):
+            production: list[str] = []
+
+            if "flyer" in decision.format or "image" in decision.format:
+                production.append("image")
+
+            if "video" in decision.format:
+                production.append("video")
+
+            if "voiceover" in decision.format:
+                production.extend(["script", "audio"])
+
+            if decision.format == "ugc_video":
+                production.extend(["script", "video", "audio"])
+
+            if "campaign" in decision.format:
+                production.extend(["image", "video", "copy"])
+
+            if not production:
+                production.append("copy")
+
+            ideas.append(
+                ContentIdea(
+                    content_type=decision.format,
+                    objective=decision.objective,
+                    channel=decision.channel,
+                    production=list(dict.fromkeys(production)),
+                    rationale=decision.rationale,
+                    priority=index,
+                    metadata={
+                        **decision.metadata,
+                        "confidence": decision.confidence,
+                    },
+                )
+            )
+
+        return ideas
+
+
+__all__ = [
+    "ContentIdea",
+    "ContentPlanner",
+]
