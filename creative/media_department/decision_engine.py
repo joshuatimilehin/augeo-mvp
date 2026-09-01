@@ -150,3 +150,4 @@ class BusinessContentDecisionEngine:
                 decision.metadata["business_category"] = business_type
 
         return decisions
+
