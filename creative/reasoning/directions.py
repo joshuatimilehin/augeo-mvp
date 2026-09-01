@@ -78,6 +78,7 @@ def ideate_directions(
     brief: str = "",
     n: int = 3,
     brand: Optional[object] = None,
+    regen_level: int = 0,
 ) -> List[DirectionCandidate]:
     """Produce `n` materially different creative territories.
 
@@ -90,11 +91,20 @@ def ideate_directions(
     base = (context.category or "general").lower()
     style = (context.visual_style or "modern").lower()
 
-    seeds = [
-        ("Quiet Luxury", f"Editorial, minimal, high-craft {style}"),
-        ("Cultural Tension", f"Juxtapose heritage and modernity in {base}"),
-        ("Unexpected Contrast", f"Bold color + candid moments for {base}"),
-    ]
+    # Choose seed territories; `regen_level` increases divergence from defaults
+    if regen_level <= 0:
+        seeds = [
+            ("Quiet Luxury", f"Editorial, minimal, high-craft {style}"),
+            ("Cultural Tension", f"Juxtapose heritage and modernity in {base}"),
+            ("Unexpected Contrast", f"Bold color + candid moments for {base}"),
+        ]
+    else:
+        # Force more divergent seeds when regenerating
+        seeds = [
+            ("Local Collaborator", f"Work with local makers and settings in {base}"),
+            ("Hyper-Contrast Pop", f"Aggressive color collisions and urban textures for {base}"),
+            ("Documentary Intimacy", f"Close human moments and imperfect lighting in {base}"),
+        ]
 
     candidates: List[DirectionCandidate] = []
 

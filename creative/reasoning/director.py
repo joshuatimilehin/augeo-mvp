@@ -69,16 +69,27 @@ class CreativeDirector:
 
     def ideate(self, session: CreativeSession, n: int = 3) -> List[DirectionCandidate]:
         """Generate `n` candidate directions and attach them to the session."""
-        candidates = ideate_directions(session.context, brief=(session.brief or ""), n=n, brand=session.brand_profile)
-        # run quality gate and mark rejects
-        rejected = self.quality_gate.evaluate(candidates)
-        for concept, reason in rejected.items():
-            session.rejected_directions.append(concept)
-            # persist rejection memory
-            record_rejection({"concept": concept, "reason": reason, "brief": session.brief})
+        # Try ideation with regeneration if quality gate rejects all candidates.
+        max_attempts = 3
+        attempt = 0
+        candidates = []
+        while attempt < max_attempts:
+            candidates = ideate_directions(session.context, brief=(session.brief or ""), n=n, brand=session.brand_profile, regen_level=attempt)
+            rejected = self.quality_gate.evaluate(candidates)
+            for concept, reason in rejected.items():
+                if concept not in session.rejected_directions:
+                    session.rejected_directions.append(concept)
+                    record_rejection({"concept": concept, "reason": reason, "brief": session.brief})
 
-        # Filter out rejected candidates for initial judgment
-        candidates = [c for c in candidates if c.direction.concept not in session.rejected_directions]
+            # Keep only non-rejected candidates
+            candidates = [c for c in candidates if c.direction.concept not in session.rejected_directions]
+            if candidates:
+                break
+            attempt += 1
+
+        # If still empty, fall back to last generated (allow re-evaluation downstream)
+        if not candidates:
+            candidates = ideate_directions(session.context, brief=(session.brief or ""), n=n, brand=session.brand_profile, regen_level=max_attempts)
         session.propose_directions(candidates)
         return candidates
 
@@ -117,6 +128,23 @@ class CreativeDirector:
         variation_count: int = 1,
     ) -> CreativeProductionSpec:
         """Create a provider-agnostic production specification from the session state."""
+        # derive brand constraints from an attached BrandProfile when available
+        brand_constraints = []
+        provider_hints = []
+        if session.brand_profile:
+            try:
+                bp = session.brand_profile
+                # common constraints: colors, tone, logo/wordmark
+                if getattr(bp, "primary_color", None):
+                    brand_constraints.append(f"primary_color:{bp.primary_color}")
+                if getattr(bp, "preferred_tone", None):
+                    provider_hints.append(f"preferred_tone:{bp.preferred_tone}")
+                if getattr(bp, "business_name", None):
+                    brand_constraints.append(f"brand_name:{bp.business_name}")
+            except Exception:
+                # defensive: ignore brand failures and proceed
+                pass
+
         spec = CreativeProductionSpec(
             deliverable=deliverable,
             aspect_ratio=aspect_ratio,
@@ -124,14 +152,23 @@ class CreativeDirector:
             creative_direction=session.selected_direction,
             visual_references=[],
             product_assets=list(session.context.brand_name and [session.context.brand_name] or []),
-            brand_constraints=[],
+            brand_constraints=brand_constraints,
             prompt=None,
             variation_count=variation_count,
+            provider_hints=provider_hints,
         )
         return spec
 
     def route_production(self, spec: CreativeProductionSpec, *, quality: Optional[str] = None, speed: Optional[str] = None, cost: Optional[str] = None) -> dict:
-        return self.provider_router.route(spec, quality_requirement=quality, speed_requirement=speed, cost_requirement=cost)
+        route = self.provider_router.route(spec, quality_requirement=quality, speed_requirement=speed, cost_requirement=cost)
+        # attempt to initialize provider client and include status
+        from creative.provider_utils import ProviderInitializer
+
+        provider_key = route.get("provider")
+        client = ProviderInitializer.init(provider_key)
+        route["client_initialized"] = bool(client)
+        route["client_info"] = client
+        return route
 
     def review(self, session: CreativeSession) -> dict:
         """Return a structured review payload for UI or API consumption."""

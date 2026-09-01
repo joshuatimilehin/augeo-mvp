@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, List
 
 from creative.context import CustomerContext
 from creative.reasoning.directions import DirectionCandidate
@@ -12,20 +12,21 @@ from creative.brand.profile import BrandProfile
 class CreativeSession:
     context: CustomerContext
     brief: Optional[str] = None
+    # Session status states: ideation -> proposed -> direction_selected -> revision -> changes_requested -> approved
     status: str = "ideation"
 
     # Directions proposed in the ideation phase
-    proposed_directions: list[DirectionCandidate] = field(default_factory=list)
+    proposed_directions: List[DirectionCandidate] = field(default_factory=list)
 
     # Selected direction concept string
     selected_direction: Optional[str] = None
     judgment: Optional[CreativeJudgment] = None
 
     # Revision history stores Revision or RevisionPlan objects
-    revisions: list[Revision] = field(default_factory=list)
+    revisions: List[Revision] = field(default_factory=list)
 
     # Rejected directions (concept names)
-    rejected_directions: list[str] = field(default_factory=list)
+    rejected_directions: List[str] = field(default_factory=list)
 
     # Optional attached brand profile for the session
     brand_profile: Optional[BrandProfile] = None
@@ -50,6 +51,11 @@ class CreativeSession:
 
 
     def select_direction(self, concept: str, judgment: Optional[CreativeJudgment] = None) -> None:
+        # ensure the selected concept exists in proposed directions unless it's being selected after revisions
+        proposed_concepts = [c.direction.concept for c in self.proposed_directions]
+        if proposed_concepts and concept not in proposed_concepts:
+            raise ValueError(f"Cannot select direction '{concept}'; not in proposed directions")
+
         self.selected_direction = concept
         if judgment:
             self.judgment = judgment
@@ -67,3 +73,11 @@ class CreativeSession:
         self.revisions.append(revision)
         self.status = "revision"
         return revision
+
+    def attach_brand_profile(self, profile: BrandProfile) -> None:
+        self.brand_profile = profile
+
+    def current_revision(self) -> Optional[Revision]:
+        if not self.revisions:
+            return None
+        return self.revisions[-1]

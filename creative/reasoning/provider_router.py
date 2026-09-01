@@ -1,6 +1,7 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from creative.reasoning.production import CreativeProductionSpec
+from creative.provider_utils import ProviderConfig, ProviderInitializer
 
 
 class CreativeProviderRouter:
@@ -30,6 +31,12 @@ class CreativeProviderRouter:
 
         provider = self.mapping.get(deliverable, "mock")
 
+        # honor explicit provider hints (capability routing)
+        provider_hints = spec.provider_hints or []
+        if any(h.startswith("preferred_tone:") for h in provider_hints):
+            # prefer LLMs for nuanced tone instructions
+            provider = "llm"
+
         hints = []
         if quality_requirement == "high":
             hints.append("use-high-quality-model")
@@ -38,10 +45,13 @@ class CreativeProviderRouter:
         if cost_requirement == "low":
             hints.append("cost-optimized")
 
-        # Provider-level adjustments
-        provider_hints = spec.provider_hints or []
+        # Provider-level adjustments already considered; now attempt init
+        client = ProviderInitializer.init(provider)
+        has_key = ProviderConfig.get_key(provider) is not None
 
         return {
             "provider": provider,
             "hints": ",".join(provider_hints + hints) if (provider_hints or hints) else None,
+            "has_key": has_key,
+            "client": client,
         }
