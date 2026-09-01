@@ -1,3 +1,4 @@
+from database import get_customer_by_phone, initialize_db, remember_customer_preferences
 from main import (
     build_conversation_intro,
     build_creative_direction_reply,
@@ -94,6 +95,28 @@ def test_conversation_intro_supports_film_and_concept_work():
     order_prompt = build_order_prompt()
     assert "film" in intro.lower() or "concept" in intro.lower() or "sports" in intro.lower()
     assert "film" in order_prompt.lower() or "concept" in order_prompt.lower() or "sports" in order_prompt.lower()
+
+
+def test_intro_feels_more_personal_and_memory_layer_ready():
+    intro = build_conversation_intro()
+    assert "remember" in intro.lower() or "personal" in intro.lower() or "taste" in intro.lower()
+    assert "creative direction" in intro.lower() or "direction" in intro.lower()
+    assert "we’ve reached the point" in intro.lower() or "i can shape" in intro.lower()
+
+
+def test_memory_layer_keeps_preferred_tone_and_category_focus():
+    initialize_db()
+    remember_customer_preferences(
+        "+2348000000001",
+        tone="cinematic",
+        category_focus="sports",
+        business_name="Ayo FC",
+    )
+    customer = get_customer_by_phone("+2348000000001")
+    assert customer is not None
+    assert customer["preferred_tone"] == "cinematic"
+    assert customer["preferred_category_focus"] == "sports"
+    assert customer["business_name"] == "Ayo FC"
 
 
 def test_help_message_describes_a_creative_companion():

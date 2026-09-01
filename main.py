@@ -127,15 +127,15 @@ def safe_json_loads(data_str: str, default: dict = None) -> dict:
 
 def build_conversation_intro() -> str:
     return (
-        "Hey — I’ve got this. We’ve reached the point where I can shape the idea into something that feels right for the audience.\n\n"
-        "Send the idea, reference, film concept, sports moment, product, or brand direction — even if it’s loose. I’ll help turn it into a clear creative path.\n\n"
-        "Whether you’re a creator, freelancer, business owner, or just someone with a concept, I’ll translate the energy into direction that fits."
+        "Hey — I’ve got this. We’ve reached the point where I can shape the idea into a clear creative direction that actually feels like it belongs to your audience.\n\n"
+        "Send the concept, film idea, sports moment, product, campaign reference, or even a loose feeling — it’s enough. I’ll turn it into a direction that feels intentional, not generic.\n\n"
+        "Whether you’re a creator, freelancer, business owner, or just someone with a strong idea, I’ll remember the tone and taste that works for you and build from there."
     )
 
 
 def build_order_prompt() -> str:
     return (
-        "Perfect — we’ve reached the point where the creative can do the selling, the story, or the mood.\n\n"
+        "Perfect — we’ve reached the point where the creative direction starts becoming real.\n\n"
         "Tell me what you’re trying to make: a film, campaign, social piece, product launch, matchday moment, or something entirely different.\n\n"
         "Send the concept, reference, audience, and any notes you want me to lean into, and I’ll build the direction around that — business context optional, creative intent first."
     )

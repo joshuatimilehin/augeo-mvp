@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS customers (
     preferred_graphic_skill TEXT,
     preferred_prompt_skill TEXT,
     preferred_category_skill TEXT,
+    preferred_tone TEXT,
+    preferred_category_focus TEXT,
     last_flyer_at TEXT,
     last_engagement_at TEXT,
     reminder_opt_out BOOLEAN DEFAULT 0,
@@ -156,7 +158,36 @@ def initialize_db():
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with closing(get_connection()) as conn:
         conn.executescript(SCHEMA)
+        for column_sql in [
+            "ALTER TABLE customers ADD COLUMN preferred_tone TEXT",
+            "ALTER TABLE customers ADD COLUMN preferred_category_focus TEXT",
+        ]:
+            try:
+                conn.execute(column_sql)
+            except sqlite3.OperationalError:
+                pass
         conn.commit()
+
+
+def remember_customer_preferences(phone, *, tone=None, category_focus=None, business_name=None, graphic_skill=None, prompt_skill=None, category_skill=None):
+    payload = {}
+    if tone is not None:
+        payload['preferred_tone'] = tone
+    if category_focus is not None:
+        payload['preferred_category_focus'] = category_focus
+    if business_name is not None:
+        payload['business_name'] = business_name
+    if graphic_skill is not None:
+        payload['preferred_graphic_skill'] = graphic_skill
+    if prompt_skill is not None:
+        payload['preferred_prompt_skill'] = prompt_skill
+    if category_skill is not None:
+        payload['preferred_category_skill'] = category_skill
+    if not payload:
+        return None
+    get_or_create_customer(phone)
+    update_customer(phone, **payload)
+    return get_customer_by_phone(phone)
 
 
 def get_or_create_customer(phone, name=None):
