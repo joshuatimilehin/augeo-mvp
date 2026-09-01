@@ -22,11 +22,32 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 
 FLASK_DEBUG = os.getenv("FLASK_ENV", "production") == "development"
 
+# Brand voice and product boundaries
+AUGEO_PERSONA = {
+    "name": "Augeo",
+    "voice": "confident, clear, sales-aware, and calm",
+    "pricing_visibility": "hidden_in_chat_by_default",
+    "default_offer_style": "offer-led, not price-led",
+    "core_business": "contextual creative production for people, creators, freelancers, and businesses",
+    "deliverables": ["flyers", "product visuals", "UGC videos", "launch films", "brand social content", "creative concepts"],
+    "customer_types": ["creator", "freelancer", "small business", "brand"],
+    "business_context_is_optional": True,
+}
+
+MEDIA_PROVIDER_PRIORITY = {
+    "image": ["ideogram", "higgsfield", "legacy"],
+    "video": ["runway", "seedance", "openai", "higgsfield"],
+    "ugc_video": ["runway", "seedance", "openai", "higgsfield"],
+    "launch_video": ["runway", "seedance", "openai", "higgsfield"],
+}
+
+DISPLAY_PRICING_IN_CHAT = False
+
 # Credit packs
 CREDIT_PACKS = {
-    "starter": {"credits": 10, "price_ngn": 3000, "label": "10 Flyers — ₦3,000"},
-    "growth": {"credits": 25, "price_ngn": 6500, "label": "25 Flyers — ₦6,500 (save ₦1,000)"},
-    "pro": {"credits": 60, "price_ngn": 15000, "label": "60 Flyers — ₦15,000 (save ₦3,000)"},
+    "starter": {"credits": 10, "price_ngn": 3000, "label": "Starter pack"},
+    "growth": {"credits": 25, "price_ngn": 6500, "label": "Growth pack"},
+    "pro": {"credits": 60, "price_ngn": 15000, "label": "Pro pack"},
 }
 
 # Cost per flyer in credits

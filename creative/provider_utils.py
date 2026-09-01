@@ -11,6 +11,9 @@ class ProviderConfig:
         "openai": "OPENAI_API_KEY",
         "ideogram": "IDEOGRAM_API_KEY",
         "higgsfield": "HIGGSFIELD_API_KEY",
+        "higgfield": "HIGGSFIELD_API_KEY",
+        "runway": "RUNWAYML_API_SECRET",
+        "seedance": "SEEDANCE_API_KEY",
     }
 
     @classmethod
@@ -91,8 +94,9 @@ class ProviderInitializer:
                 # OpenAI SDK isn't installed or failed to import; return descriptor
                 return {"provider": "openai", "client": "openai-import-failed", "key_present": True}
 
-        if provider_name in ("ideogram", "image", "video_engine"):
-            # Ideogram client isn't a required runtime dependency; return descriptor
+        if provider_name in ("ideogram", "image", "video_engine", "higgsfield", "higgfield", "runway", "seedance"):
+            # Provider clients are intentionally lightweight descriptors until a real
+            # SDK or adapter is required; they should fall back gracefully when keys are absent.
             return {"provider": provider_name, "client": "descriptor", "key_present": True}
 
         # Generic fallback descriptor for unknown providers

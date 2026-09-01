@@ -26,12 +26,13 @@ class SocialAgent:
     """Turns a tag or DM into one clear creative deliverable."""
 
     _PATTERNS = (
-        ("launch_video", r"\b(launch video|product launch|launch reel|promo video|commercial video)\b"),
+        ("launch_video", r"\b(launch video|brand film|brand video|product launch|launch reel|promo video|commercial video|ad film|film for my brand)\b"),
+        ("brand_video", r"\b(video ad|brand ad|brand commercial|promo reel|product film|company film|business video|brand content)\b"),
         ("ugc_video", r"\b(ugc|creator script|reel script|tiktok script|video script)\b"),
         ("content_plan", r"\b(content plan|content calendar|content ideas|campaign)\b"),
         ("social_copy", r"\b(caption|copy|write a post|social post|educat|teach|explain)\b"),
-        ("graphic_design", r"\b(create|make|generate|design).{0,30}\b(image|visual|graphic|poster|flyer|ad|advertisement)\b"),
-        ("graphic_design", r"\b(flyer|poster|graphic design|advertisement)\b"),
+        ("graphic_design", r"\b(create|make|generate|design).{0,30}\b(image|visual|graphic|poster|flyer|ad|advertisement|creative)\b"),
+        ("graphic_design", r"\b(flyer|poster|graphic design|advertisement|brand visual|creative asset)\b"),
     )
 
     def classify(self, text: str) -> SocialRequest | None:
