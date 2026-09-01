@@ -119,6 +119,22 @@ def test_memory_layer_keeps_preferred_tone_and_category_focus():
     assert customer["business_name"] == "Ayo FC"
 
 
+def test_handle_message_remembers_taste_from_creative_requests():
+    initialize_db()
+    handle_message(
+        "+2348000000002",
+        "Cinematic sports anime matchday opening with brutal energy.",
+        {"intent": "message", "text": "Cinematic sports anime matchday opening with brutal energy."},
+        {},
+        "",
+        0,
+    )
+    customer = get_customer_by_phone("+2348000000002")
+    assert customer is not None
+    assert customer["preferred_tone"] in ["cinematic", "cinematic sports"]
+    assert "sports" in (customer["preferred_category_focus"] or "") or "animation" in (customer["preferred_category_focus"] or "")
+
+
 def test_help_message_describes_a_creative_companion():
     response = handle_message(
         "+2348000000000",

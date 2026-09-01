@@ -29,7 +29,7 @@ from config import (
     AUGEO_PERSONA,
     DISPLAY_PRICING_IN_CHAT,
 )
-from database import initialize_db, get_customer, get_or_create_customer, get_customer_by_phone, update_customer, add_credits, deduct_credit, get_credit_balance, add_flyer, log_conversation, get_flyer_count_for_customer, get_customers_for_retention, save_brand_memory, get_brand_memory, get_customer_by_referral_code, get_stats, get_connection, save_layout, get_recent_layouts
+from database import initialize_db, get_customer, get_or_create_customer, get_customer_by_phone, update_customer, add_credits, deduct_credit, get_credit_balance, add_flyer, log_conversation, get_flyer_count_for_customer, get_customers_for_retention, save_brand_memory, get_brand_memory, get_customer_by_referral_code, get_stats, get_connection, save_layout, get_recent_layouts, remember_customer_preferences
 from skill_registry import SkillRegistry
 from ai_service import generate_caption
 from flyer_generator import FlyerGenerator
@@ -679,6 +679,34 @@ def looks_like_loose_creative_idea(text: str) -> bool:
     return any(trigger in cleaned for trigger in triggers)
 
 
+def infer_creative_preferences(text: str) -> dict:
+    cleaned = (text or '').lower()
+    tone = None
+    category_focus = []
+
+    if 'cinematic' in cleaned or 'epic' in cleaned or 'dramatic' in cleaned:
+        tone = 'cinematic'
+    elif 'bold' in cleaned or 'energetic' in cleaned or 'gritty' in cleaned:
+        tone = 'bold'
+    elif 'minimal' in cleaned or 'clean' in cleaned or 'editorial' in cleaned:
+        tone = 'minimal'
+
+    if any(word in cleaned for word in ['sports', 'matchday', 'football', 'stadium', 'fc']):
+        category_focus.append('sports')
+    if any(word in cleaned for word in ['anime', 'animation', 'cartoon', 'stylized']):
+        category_focus.append('animation')
+    if any(word in cleaned for word in ['campaign', 'launch', 'brand', 'product']):
+        category_focus.append('brand')
+
+    if tone == 'cinematic' and 'sports' in category_focus:
+        tone = 'cinematic sports'
+
+    return {
+        'preferred_tone': tone,
+        'preferred_category_focus': ', '.join(category_focus) if category_focus else None,
+    }
+
+
 def build_creative_direction_reply(text: str, memory: dict | None = None) -> str:
     cleaned = (text or '').strip().lower()
     memory = memory or {}
@@ -740,20 +768,29 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
     # Visual work still uses the proven asset-and-details flyer flow.
     social_request = social_agent.classify(text)
     if state == 'idle' and (social_request or looks_like_loose_creative_idea(text)):
+        preferences = infer_creative_preferences(text)
+        if from_number:
+            get_or_create_customer(from_number)
+            remember_customer_preferences(
+                from_number,
+                tone=preferences.get('preferred_tone'),
+                category_focus=preferences.get('preferred_category_focus'),
+            )
+
         if social_request and social_request.capability == 'creative_direction':
             return build_creative_direction_reply(
                 text,
                 {
-                    'preferred_tone': customer.get('preferred_tone') or customer.get('preferred_graphic_skill') or '',
-                    'category_focus': customer.get('preferred_category_focus') or '',
+                    'preferred_tone': customer.get('preferred_tone') or customer.get('preferred_graphic_skill') or preferences.get('preferred_tone') or '',
+                    'category_focus': customer.get('preferred_category_focus') or preferences.get('preferred_category_focus') or '',
                 },
             )
         if social_request is None:
             return build_creative_direction_reply(
                 text,
                 {
-                    'preferred_tone': customer.get('preferred_tone') or customer.get('preferred_graphic_skill') or '',
-                    'category_focus': customer.get('preferred_category_focus') or '',
+                    'preferred_tone': customer.get('preferred_tone') or customer.get('preferred_graphic_skill') or preferences.get('preferred_tone') or '',
+                    'category_focus': customer.get('preferred_category_focus') or preferences.get('preferred_category_focus') or '',
                 },
             )
 
