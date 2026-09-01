@@ -1,4 +1,9 @@
-from main import build_conversation_intro, build_order_prompt
+from main import (
+    build_conversation_intro,
+    build_creative_direction_reply,
+    build_order_prompt,
+    handle_message,
+)
 from creative.context import CustomerContext
 from creative.brand.profile import BrandProfile
 from creative.reasoning import (
@@ -82,3 +87,45 @@ def test_non_business_context_is_supported_without_brand_forcing():
     assert "creator" in intro.lower() or "freelancer" in intro.lower()
     assert "business" in intro.lower()
     assert "price" not in intro.lower()
+
+
+def test_conversation_intro_supports_film_and_concept_work():
+    intro = build_conversation_intro()
+    order_prompt = build_order_prompt()
+    assert "film" in intro.lower() or "concept" in intro.lower() or "sports" in intro.lower()
+    assert "film" in order_prompt.lower() or "concept" in order_prompt.lower() or "sports" in order_prompt.lower()
+
+
+def test_help_message_describes_a_creative_companion():
+    response = handle_message(
+        "+2348000000000",
+        "help",
+        {"intent": "help", "text": "help"},
+        {},
+        "",
+        0,
+    )
+    assert "creative" in response.lower()
+    assert "film" in response.lower() or "campaign" in response.lower() or "concept" in response.lower()
+
+
+def test_handle_message_turns_loose_creative_ideas_into_direction():
+    response = handle_message(
+        "+2348000000000",
+        "Maybe a film, lol. Or not. Let’s do Garfield. Recreate some really cool episodes.",
+        {"intent": "message", "text": "Maybe a film, lol. Or not. Let’s do Garfield. Recreate some really cool episodes."},
+        {},
+        "",
+        0,
+    )
+    assert "garfield" in response.lower()
+    assert "strong" in response.lower() or "direction" in response.lower()
+
+
+def test_creative_direction_uses_previous_taste_when_available():
+    response = build_creative_direction_reply(
+        "Let’s do Garfield again.",
+        {"preferred_tone": "cinematic", "category_focus": "animation"},
+    )
+    assert "cinematic" in response.lower()
+    assert "animation" in response.lower() or "tone" in response.lower()

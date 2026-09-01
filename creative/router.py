@@ -15,6 +15,8 @@ CORE_CAPABILITIES = (
     "brand_video",
     "ugc_video",
     "launch_video",
+    "creative_direction",
+    "campaign_direction",
     "social_copy",
     "content_plan",
 )
@@ -61,6 +63,10 @@ class CreativeRouter:
             return self._ugc_video(brief)
         if brief.capability == "launch_video":
             return self._launch_video_brief(brief)
+        if brief.capability == "creative_direction":
+            return self._creative_direction(brief)
+        if brief.capability == "campaign_direction":
+            return self._campaign_direction(brief)
         if brief.capability == "social_copy":
             return self._social_copy(brief)
         if brief.capability == "content_plan":
@@ -110,6 +116,29 @@ class CreativeRouter:
             "7–14s — Product proof: show it solving that problem.",
             "14–20s — Offer: state the value clearly and close with one direct CTA.",
             "Format: vertical 9:16, captions on, product visible in the first second.",
+        ])
+        return result
+
+    def _creative_direction(self, brief: CreativeBrief) -> dict[str, Any]:
+        result = self._base(brief, "creative_direction", "ready")
+        result["content"] = "\n".join([
+            "The idea has a strong hook: use the reference and turn it into an original, cinematic interpretation rather than a literal remake.",
+            "Build three creative territories: 1) classic nostalgic revival, 2) cinematic realism, 3) modern anime or stylized matchday treatment.",
+            "For a football or entertainment idea, lead with spectacle and emotional rhythm: arrival, tension, release, and payoff.",
+            "If the brief already has a clear source, keep the emotional logic and reframe the visual world rather than copying the original frame-by-frame.",
+            "Best direction: choose the variant that creates the biggest contrast between the mood and the world-building.",
+            "Example treatment: anime matchday opening with stadium atmosphere, close-ups, tunnel energy, and a dramatic gameplay payoff.",
+        ])
+        return result
+
+    def _campaign_direction(self, brief: CreativeBrief) -> dict[str, Any]:
+        result = self._base(brief, "campaign_direction", "ready")
+        result["content"] = "\n".join([
+            "Treat this as a launch campaign, not just one asset: hero film, feature reveal, product proof, lifestyle frame, and social cutdowns.",
+            "Start with a clear launch narrative: what problem does the product solve, what is the emotional feeling, and what makes it distinct.",
+            "Build a social-first rollout with short, punchy cuts for feed, story, and reel placements.",
+            "Anchor the campaign around one strong visual idea and repeat it across all formats so the launch feels connected and premium.",
+            "The campaign should feel culturally smart, sale-aware, and immediately shareable without flattening the brand voice.",
         ])
         return result
 

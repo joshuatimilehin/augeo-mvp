@@ -26,7 +26,9 @@ class SocialAgent:
     """Turns a tag or DM into one clear creative deliverable."""
 
     _PATTERNS = (
-        ("launch_video", r"\b(launch video|brand film|brand video|product launch|launch reel|promo video|commercial video|ad film|film for my brand)\b"),
+        ("launch_video", r"\b(launch video|brand film|brand video|product launch|launch reel|promo video|commercial video|ad film|film for my brand|fc 25 launch|game launch trailer)\b"),
+        ("creative_direction", r"\b(anime matchday|matchday experience|fc 25|football launch trailer|anime opening|creative direction|reimagine this|make it anime|make something like|garfield|recreate some really cool episodes|old cartoon|cartoon episode|film, lol|maybe a film|make a film|make something cool|surprise me|creative concept|idea for a film|idea for a video)\b"),
+        ("campaign_direction", r"\b(launch campaign|new product|product launch|social campaign|feature launch|brand campaign|motion graphic|launch day|new feature)\b"),
         ("brand_video", r"\b(video ad|brand ad|brand commercial|promo reel|product film|company film|business video|brand content)\b"),
         ("ugc_video", r"\b(ugc|creator script|reel script|tiktok script|video script)\b"),
         ("content_plan", r"\b(content plan|content calendar|content ideas|campaign)\b"),

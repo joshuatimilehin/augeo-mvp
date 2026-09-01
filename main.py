@@ -128,16 +128,16 @@ def safe_json_loads(data_str: str, default: dict = None) -> dict:
 def build_conversation_intro() -> str:
     return (
         "Hey — I’ve got this. We’ve reached the point where I can shape the idea into something that feels right for the audience.\n\n"
-        "Send the product, reference, or concept and keep it simple: the goal, the audience, and any key notes you want me to lean into.\n\n"
-        "Whether you’re a creator, freelancer, or running a business, I’ll give you the context and creative direction that fits."
+        "Send the idea, reference, film concept, sports moment, product, or brand direction — even if it’s loose. I’ll help turn it into a clear creative path.\n\n"
+        "Whether you’re a creator, freelancer, business owner, or just someone with a concept, I’ll translate the energy into direction that fits."
     )
 
 
 def build_order_prompt() -> str:
     return (
-        "Perfect — we’ve reached the point where the creative can do the selling or the storytelling.\n\n"
-        "Send the product, reference, or idea, and tell me the goal, the audience, and any notes you want highlighted.\n\n"
-        "I’ll build it around the context you have now, and if you’re a business I’ll factor that in too."
+        "Perfect — we’ve reached the point where the creative can do the selling, the story, or the mood.\n\n"
+        "Tell me what you’re trying to make: a film, campaign, social piece, product launch, matchday moment, or something entirely different.\n\n"
+        "Send the concept, reference, audience, and any notes you want me to lean into, and I’ll build the direction around that — business context optional, creative intent first."
     )
 
 
@@ -669,6 +669,67 @@ def start_video_progress_tracking(customer_phone: str, video_id: str) -> None:
     worker.start()
 
 
+def looks_like_loose_creative_idea(text: str) -> bool:
+    cleaned = (text or '').lower()
+    triggers = [
+        'garfield', 'anime', 'matchday', 'film', 'movie', 'concept', 'campaign',
+        'launch', 'recreate', 'creative', 'cool', 'surprise me', 'make something',
+        'idea', 'make it', 'remake', 'reimagine', 'episode', 'trailer', 'story'
+    ]
+    return any(trigger in cleaned for trigger in triggers)
+
+
+def build_creative_direction_reply(text: str, memory: dict | None = None) -> str:
+    cleaned = (text or '').strip().lower()
+    memory = memory or {}
+    preferred_tone = str(memory.get('preferred_tone') or '').lower()
+    category_focus = str(memory.get('category_focus') or '').lower()
+
+    if 'garfield' in cleaned:
+        if preferred_tone == 'cinematic' or category_focus == 'animation':
+            return (
+                "😂 Garfield is a strong one. Given your taste for a cinematic, animation-leaning tone, I’d push this toward a grounded world with stylized character performance.\n\n"
+                "1. Cinematic live-action reinterpretation — grounded world, believable textures, playful absurdity.\n"
+                "2. Stylized animated revival — preserve the classic charm, but give it a cleaner, more premium visual language.\n"
+                "3. Modern nostalgia route — warm classic cues, sharper framing, richer light and motion.\n\n"
+                "If you’ve got an episode in mind, send the title and I’ll build the full treatment around it."
+            )
+        return (
+            "😂 Garfield is a strong one. There are a few directions that immediately stand out:\n\n"
+            "1. Nostalgic revival — warm, hand-drawn, classic cartoon energy with exaggerated expressions.\n"
+            "2. Cinematic live-action reinterpretation — grounded world, believable textures, absurd character performance.\n"
+            "3. Modern stylized film — keep the recognizable Garfield feel but give it a contemporary, more cinematic visual language.\n\n"
+            "If you’ve got an episode in mind, send the title and I’ll build the full treatment around it. If not, I’ll pick the strongest direction and shape the first sequence."
+        )
+
+    if 'anime' in cleaned or 'matchday' in cleaned or ('fc' in cleaned and 'launch' in cleaned):
+        return (
+            "That’s a good direction. I’d treat it less like a literal remake and more like an anime matchday opening — arrival, tunnel, pressure, decisive moment, release.\n\n"
+            "The strongest version usually turns the whole event into a mood piece rather than a simple montage.\n\n"
+            "If you want, I can build this as a 3-direction pitch: classic sports drama, anime opening, or a more cinematic real-world version."
+        )
+
+    if 'launch' in cleaned or 'campaign' in cleaned or 'product' in cleaned:
+        return (
+            "Nice. This works best as a launch campaign, not a single asset. I’d think in terms of:\n\n"
+            "- Hero film\n"
+            "- Product reveal\n"
+            "- Feature motion\n"
+            "- Lifestyle cut\n"
+            "- Feed-ready social pack\n\n"
+            "That gives the campaign a consistent story instead of random one-off visuals."
+        )
+
+    return (
+        "Now that’s a good idea. I’d treat this like a creative direction problem, not just a prompt problem.\n\n"
+        "The strongest move is to build three possible territories and then choose the one with the clearest emotional pull:\n\n"
+        "1. Nostalgic / classic direction\n"
+        "2. Cinematic / grounded direction\n"
+        "3. Stylized / modern / more expressive direction\n\n"
+        "Tell me which one feels closest to the energy you want and I’ll turn it into a concrete treatment."
+    )
+
+
 def handle_message(from_number: str, body: str, parsed: dict, customer: dict, media_url: str, num_media: int) -> str:
     intent = parsed['intent']
     text = parsed['text']
@@ -678,7 +739,24 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
     # Let a tagged, natural-language request skip the legacy questionnaire.
     # Visual work still uses the proven asset-and-details flyer flow.
     social_request = social_agent.classify(text)
-    if social_request and state == 'idle':
+    if state == 'idle' and (social_request or looks_like_loose_creative_idea(text)):
+        if social_request and social_request.capability == 'creative_direction':
+            return build_creative_direction_reply(
+                text,
+                {
+                    'preferred_tone': customer.get('preferred_tone') or customer.get('preferred_graphic_skill') or '',
+                    'category_focus': customer.get('preferred_category_focus') or '',
+                },
+            )
+        if social_request is None:
+            return build_creative_direction_reply(
+                text,
+                {
+                    'preferred_tone': customer.get('preferred_tone') or customer.get('preferred_graphic_skill') or '',
+                    'category_focus': customer.get('preferred_category_focus') or '',
+                },
+            )
+
         result = social_agent.execute(
             social_request,
             {'channel': 'whatsapp', 'brand': brand_manager.build_creative_context(from_number)},
@@ -702,12 +780,12 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
     # Global commands
     if intent == 'help':
         return (
-            "Hi — I’m Augeo, your brand media partner. I build the creative that sells the product: product visuals, reels, launch films, and campaign-ready content for businesses.\n\n"
+            "Hi — I’m Augeo. I help turn ideas into creative direction, not just a single asset.\n\n"
+            "I can help with film concepts, launch campaigns, sports moments, product storytelling, social-first visuals, motion pieces, and creative reinterpretations that feel sharp and intentional.\n\n"
             "How it works:\n"
-            "1. Send the product or reference asset\n"
-            "2. Share the offer, target buyer, and any key notes\n"
-            "3. Choose the visual or video direction\n"
-            "4. I shape the final output to the brief, not just a template\n\n"
+            "1. Send the idea, vibe, reference, or product\n"
+            "2. Tell me the feeling, audience, or what you want it to do\n"
+            "3. I’ll shape the direction, suggest the strongest routes, and build from there\n\n"
             "Reply 'order' to start, or 'balance' to check credits.\n\n"
             "Reply 'privacy' or 'terms' for full details on data and refunds."
         )
