@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Taste Rating</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 2rem; }
+      .choice { border: 1px solid #ddd; padding: 1rem; margin: .5rem 0; }
+      .submit { margin-top: 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Rate Creative Directions</h1>
+    <form method="post" action="/submit">
+      {% for c in choices %}
+      <div class="choice">
+        <label>
+          <input type="radio" name="chosen" value="{{c.id}}"> <strong>{{c.concept}}</strong>
+        </label>
+        <div>{{c.thesis}}</div>
+      </div>
+      {% endfor %}
+
+      <input type="hidden" name="other" value="">
+      <div>
+        <label>Notes (optional)</label><br>
+        <textarea name="note" rows="3" cols="60"></textarea>
+      </div>
+      <div class="submit">
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+  </body>
+  </html>
