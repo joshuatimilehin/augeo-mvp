@@ -12,12 +12,13 @@ class CreativeProviderRouter:
     """
 
     def __init__(self):
-        # Example provider keys: 'ideogram', 'video_engine', 'llm', 'mock'
         self.mapping = {
-            "static_image": "ideogram",
-            "short_video": "video_engine",
-            "long_video": "video_engine",
-            "copy": "llm",
+            "static_image": ["ideogram", "higgsfield", "mock"],
+            "short_video": ["runway", "seedance", "openai", "higgsfield", "mock"],
+            "long_video": ["runway", "seedance", "openai", "higgsfield", "mock"],
+            "ugc_video": ["runway", "seedance", "openai", "higgsfield", "mock"],
+            "launch_video": ["runway", "seedance", "openai", "higgsfield", "mock"],
+            "copy": ["llm", "mock"],
         }
 
     def route(
@@ -28,14 +29,18 @@ class CreativeProviderRouter:
         cost_requirement: Optional[str] = None,
     ) -> Dict[str, Optional[str]]:
         deliverable = (spec.deliverable or "").lower()
-
-        provider = self.mapping.get(deliverable, "mock")
+        provider_hints = spec.provider_hints or []
+        candidates = self.mapping.get(deliverable, ["mock"])
 
         # honor explicit provider hints (capability routing)
-        provider_hints = spec.provider_hints or []
         if any(h.startswith("preferred_tone:") for h in provider_hints):
-            # prefer LLMs for nuanced tone instructions
-            provider = "llm"
+            candidates = ["llm", *[p for p in candidates if p != "llm"]]
+
+        provider = candidates[0]
+        for candidate in candidates:
+            if ProviderConfig.get_key(candidate) is not None or candidate == "mock":
+                provider = candidate
+                break
 
         hints = []
         if quality_requirement == "high":
@@ -45,12 +50,12 @@ class CreativeProviderRouter:
         if cost_requirement == "low":
             hints.append("cost-optimized")
 
-        # Provider-level adjustments already considered; now attempt init
         client = ProviderInitializer.init(provider)
         has_key = ProviderConfig.get_key(provider) is not None
 
         return {
             "provider": provider,
+            "fallbacks": [p for p in candidates if p != provider],
             "hints": ",".join(provider_hints + hints) if (provider_hints or hints) else None,
             "has_key": has_key,
             "client": client,

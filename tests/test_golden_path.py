@@ -1,3 +1,4 @@
+from main import build_conversation_intro, build_order_prompt
 from creative.context import CustomerContext
 from creative.brand.profile import BrandProfile
 from creative.reasoning import (
@@ -60,3 +61,24 @@ def test_golden_path_end_to_end(tmp_path):
     # Basic best selection check
     best = max(results, key=lambda r: r["scores"]["composite_score"])
     assert best["scores"]["composite_score"] >= 0.0
+
+
+def test_personality_flow_is_less_generic_and_more_offer_focused():
+    intro = build_conversation_intro()
+    order_prompt = build_order_prompt()
+
+    assert "we’ve reached the point" in intro.lower()
+    assert "creator" in intro.lower() or "business" in intro.lower()
+    assert "price" not in intro.lower()
+    assert "reply with" not in intro.lower()
+
+    assert "we’ve reached the point" in order_prompt.lower()
+    assert "goal" in order_prompt.lower() or "audience" in order_prompt.lower()
+    assert "business" in order_prompt.lower() or "context" in order_prompt.lower()
+
+
+def test_non_business_context_is_supported_without_brand_forcing():
+    intro = build_conversation_intro()
+    assert "creator" in intro.lower() or "freelancer" in intro.lower()
+    assert "business" in intro.lower()
+    assert "price" not in intro.lower()

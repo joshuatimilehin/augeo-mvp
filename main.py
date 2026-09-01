@@ -15,7 +15,20 @@ from flask import Flask, Response, request, jsonify, send_file
 from PIL import Image, ImageDraw, ImageFont
 
 from alerts import run_all_checks
-from config import BASE_URL, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER, PAYSTACK_SECRET_KEY, CREDIT_PACKS, FLYER_CREDIT_COST, BRAND_MEMORY_THRESHOLD, FLASK_DEBUG, USE_GENERATIVE_LAYOUT
+from config import (
+    BASE_URL,
+    TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN,
+    TWILIO_WHATSAPP_NUMBER,
+    PAYSTACK_SECRET_KEY,
+    CREDIT_PACKS,
+    FLYER_CREDIT_COST,
+    BRAND_MEMORY_THRESHOLD,
+    FLASK_DEBUG,
+    USE_GENERATIVE_LAYOUT,
+    AUGEO_PERSONA,
+    DISPLAY_PRICING_IN_CHAT,
+)
 from database import initialize_db, get_customer, get_or_create_customer, get_customer_by_phone, update_customer, add_credits, deduct_credit, get_credit_balance, add_flyer, log_conversation, get_flyer_count_for_customer, get_customers_for_retention, save_brand_memory, get_brand_memory, get_customer_by_referral_code, get_stats, get_connection, save_layout, get_recent_layouts
 from skill_registry import SkillRegistry
 from ai_service import generate_caption
@@ -109,6 +122,45 @@ def safe_json_loads(data_str: str, default: dict = None) -> dict:
         return json.loads(data_str)
     except Exception:
         return default
+
+# ===================== CONVERSATION PERSONALITY =====================
+
+def build_conversation_intro() -> str:
+    return (
+        "Hey — I’ve got this. We’ve reached the point where I can shape the idea into something that feels right for the audience.\n\n"
+        "Send the product, reference, or concept and keep it simple: the goal, the audience, and any key notes you want me to lean into.\n\n"
+        "Whether you’re a creator, freelancer, or running a business, I’ll give you the context and creative direction that fits."
+    )
+
+
+def build_order_prompt() -> str:
+    return (
+        "Perfect — we’ve reached the point where the creative can do the selling or the storytelling.\n\n"
+        "Send the product, reference, or idea, and tell me the goal, the audience, and any notes you want highlighted.\n\n"
+        "I’ll build it around the context you have now, and if you’re a business I’ll factor that in too."
+    )
+
+
+def get_pack_selection_message() -> str:
+    pack_lines = [
+        f"1. {CREDIT_PACKS['starter']['label']}",
+        f"2. {CREDIT_PACKS['growth']['label']}",
+        f"3. {CREDIT_PACKS['pro']['label']}",
+    ]
+
+    if DISPLAY_PRICING_IN_CHAT:
+        pack_lines = [
+            f"1. {CREDIT_PACKS['starter']['label']} — ₦{CREDIT_PACKS['starter']['price_ngn']:,}",
+            f"2. {CREDIT_PACKS['growth']['label']} — ₦{CREDIT_PACKS['growth']['price_ngn']:,}",
+            f"3. {CREDIT_PACKS['pro']['label']} — ₦{CREDIT_PACKS['pro']['price_ngn']:,}",
+        ]
+
+    return (
+        "If you want to take it final, choose a pack when you’re ready:\n"
+        + "\n".join(pack_lines)
+        + "\n\nReply 1, 2, or 3 to continue."
+    )
+
 
 # ===================== LOCAL PAYMENT TEST =====================
 
@@ -641,22 +693,21 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
         if num_media > 0:
             update_customer(from_number, conversation_state='collect_details',
                             conversation_data=json.dumps({'reference_image': media_url}))
-            return "Got the photo. Reply with price, sizes, and delivery, all in one message."
+            return (
+                "Nice — this is the part where the product starts to feel sellable. 📸\n\n"
+                "Send the offer, who it’s for, and any delivery or sizing notes you want in the flyer."
+            )
         return result['message']
 
     # Global commands
     if intent == 'help':
         return (
-            "Hi — I'm Augeo, your creative assistant. I turn product photos into polished, sales-ready flyers — fast and fuss-free.\n\n"
+            "Hi — I’m Augeo, your brand media partner. I build the creative that sells the product: product visuals, reels, launch films, and campaign-ready content for businesses.\n\n"
             "How it works:\n"
-            "1. Send a product photo\n"
-            "2. Tell me price, sizes and delivery\n"
-            "3. Pick a style\n"
-            "4. I send a preview — pay only if you love the final HD files\n\n"
-            "Pricing (examples):\n"
-            "• 10 flyers — ₦3,000\n"
-            "• 25 flyers — ₦6,500 (save ₦1,000)\n"
-            "• 60 flyers — ₦15,000 (save ₦3,000)\n\n"
+            "1. Send the product or reference asset\n"
+            "2. Share the offer, target buyer, and any key notes\n"
+            "3. Choose the visual or video direction\n"
+            "4. I shape the final output to the brief, not just a template\n\n"
             "Reply 'order' to start, or 'balance' to check credits.\n\n"
             "Reply 'privacy' or 'terms' for full details on data and refunds."
         )
@@ -701,27 +752,13 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
                 update_customer(from_number, conversation_state='collect_details', 
                                conversation_data=json.dumps({'reference_image': media_url}))
                 return (
-                    "Nice photo — I can turn that into a polished flyer. 📸\n\n"
-                    "Reply with:\n"
-                    "1. Price (e.g., ₦15,000)\n"
-                    "2. Sizes available (e.g., M, L, XL)\n"
-                    "3. Delivery info (e.g., Same day Lagos)\n\n"
-                    "Send all three in one message."
+                    "Nice — this is the part where the product starts to feel sellable. 📸\n\n"
+                    "Send the offer, who it’s for, and any delivery or sizing notes you want in the flyer."
                 )
-            return (
-                "Hello! Send a product photo and I'll design a flyer for you — quick, professional, and friendly.\n\n"
-                "Prefer to type details? Reply with price, sizes, and delivery info to get started."
-            )
+            return build_conversation_intro()
 
         update_customer(from_number, conversation_state='collect_details', conversation_data='{}')
-        return (
-            "Great! Let's create your flyer 🎨\n\n"
-            "Reply with:\n"
-            "1. Price (e.g., ₦15,000)\n"
-            "2. Sizes available (e.g., M, L, XL)\n"
-            "3. Delivery info (e.g., Same day Lagos)\n\n"
-            "Send all 3 in one message."
-        )
+        return build_order_prompt()
 
     if state == 'collect_details':
         # Parse price, sizes, delivery from text
@@ -787,11 +824,7 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
             return handle_pack_purchase(from_number, text, data)
         return (
             "Your preview is ready above ☝️\n\n"
-            "Buy credits to unlock the HD flyer:\n"
-            "1. 10 flyers — ₦3,000\n"
-            "2. 25 flyers — ₦6,500 (save ₦1,000)\n"
-            "3. 60 flyers — ₦15,000 (save ₦3,000)\n\n"
-            "Reply 1, 2, or 3 to buy."
+            + get_pack_selection_message()
         )
 
     if state == 'awaiting_pack_payment':
@@ -838,16 +871,12 @@ def handle_message(from_number: str, body: str, parsed: dict, customer: dict, me
         update_customer(from_number, conversation_state='collect_details', 
                        conversation_data=json.dumps({'reference_image': media_url}))
         return (
-            "New product? Let's go! 📸\n\n"
-            "Reply with:\n"
-            "1. Price\n"
-            "2. Sizes\n"
-            "3. Delivery info\n\n"
-            "Send all 3 in one message."
+            "New product? Good. We’ve reached the point where the offer can do the selling. 📸\n\n"
+            "Send the offer, who it’s for, and any delivery or sizing notes you want me to lean into."
         )
 
     return (
-        "Sorry, I didn't catch that.\n\n"
+        "I’m still with you — let’s keep this simple.\n\n"
         "Reply 'order' to create a flyer, 'balance' to check credits, or 'help' for info."
     )
 
@@ -972,13 +1001,9 @@ def generate_preview_and_payment_prompt(from_number: str, data: dict) -> str:
         update_customer(from_number, conversation_state='preview_ready_no_credits', conversation_data=json.dumps(data))
 
         return (
-            f"Here's your preview ☝️\n\n"
+            f"Here’s your preview ☝️\n\n"
             f"Caption: '{caption}'\n\n"
-            f"Buy credits to unlock the HD flyer:\n"
-            f"1. 10 flyers — ₦3,000\n"
-            f"2. 25 flyers — ₦6,500 (save ₦1,000)\n"
-            f"3. 60 flyers — ₦15,000 (save ₦3,000)\n\n"
-            f"Reply 1, 2, or 3 to buy."
+            + get_pack_selection_message()
         )
     except Exception as e:
         print(f"Preview error: {e}")

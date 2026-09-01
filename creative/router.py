@@ -12,6 +12,7 @@ from typing import Any
 
 CORE_CAPABILITIES = (
     "graphic_design",
+    "brand_video",
     "ugc_video",
     "launch_video",
     "social_copy",
@@ -79,8 +80,8 @@ class CreativeRouter:
     def _visual_intake(self, brief: CreativeBrief) -> dict[str, Any]:
         result = self._base(brief, "design", "needs_input")
         result.update({
-            "message": "Send a product photo (or reference), the offer/price, and where it will be posted. I’ll turn that into the design brief and visual.",
-            "required_inputs": ["product or reference image", "offer or price", "publishing channel"],
+            "message": "Send a product, reference, or concept, plus the goal and audience. If you have business context, I’ll use it; if not, I’ll still build a strong creative brief around the input you have.",
+            "required_inputs": ["product or reference image", "goal or audience", "optional business context"],
         })
         return result
 
@@ -107,7 +108,7 @@ class CreativeRouter:
             "0–2s — Pattern break: bold product/offer reveal.",
             "2–7s — Problem: name the frustration in the buyer’s words.",
             "7–14s — Product proof: show it solving that problem.",
-            "14–20s — Offer: price, availability, and one direct CTA.",
+            "14–20s — Offer: state the value clearly and close with one direct CTA.",
             "Format: vertical 9:16, captions on, product visible in the first second.",
         ])
         return result
