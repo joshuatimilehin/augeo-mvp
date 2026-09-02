@@ -7,6 +7,10 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+# Default intelligence model for Augeo (Anthropic Fable by default)
+INTELLIGENCE_DEFAULT_MODEL = os.getenv('INTELLIGENCE_DEFAULT_MODEL', 'claude-fable-5-1')
+
 # Kaspo image provider
 KASPO_API_KEY = os.getenv("KASPO_API_KEY")
 KASPO_BASE_URL = os.getenv("KASPO_BASE_URL")
@@ -65,6 +69,9 @@ OPENAI_VIDEO_MODEL = os.getenv("OPENAI_VIDEO_MODEL", "sora-2")
 VIDEO_PROVIDER = os.getenv("VIDEO_PROVIDER", "runway")
 RUNWAYML_API_SECRET = os.getenv("RUNWAYML_API_SECRET")
 RUNWAY_VIDEO_MODEL = os.getenv("RUNWAY_VIDEO_MODEL", "gen4.5")
+
+# Optional API key to protect internal endpoints. If unset, endpoints remain open for local testing.
+AUGEO_API_KEY = os.getenv('AUGEO_API_KEY')
 
 # Creative video providers
 SEEDANCE_API_KEY = os.getenv("SEEDANCE_API_KEY")

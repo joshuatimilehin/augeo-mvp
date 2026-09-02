@@ -3,6 +3,35 @@ from typing import List, Optional
 
 
 @dataclass
+class ShotSpec:
+    id: str
+    description: str
+    duration_seconds: Optional[float] = None
+    visual_direction: Optional[str] = None
+    camera_motion: Optional[str] = None
+    transition_to_next: Optional[str] = None
+    style_notes: Optional[str] = None
+    typography: Optional[str] = None
+    audio_direction: Optional[str] = None
+    continuity_notes: Optional[str] = None
+    references: List[str] = field(default_factory=list)
+
+
+@dataclass
+class ProductionPlan:
+    narrative: str
+    duration_seconds: Optional[float] = None
+    aspect_ratio: Optional[str] = None
+    shots: List[ShotSpec] = field(default_factory=list)
+    transitions: List[str] = field(default_factory=list)
+    visual_style: Optional[str] = None
+    typography_notes: Optional[str] = None
+    audio_music_direction: Optional[str] = None
+    continuity_notes: Optional[str] = None
+    references: List[str] = field(default_factory=list)
+
+
+@dataclass
 class CreativeProductionSpec:
     """Provider-agnostic specification for a production job.
 
@@ -25,6 +54,8 @@ class CreativeProductionSpec:
     output_requirements: List[str] = field(default_factory=list)
     provider_hints: List[str] = field(default_factory=list)
     variation_count: int = 1
+    # provider-agnostic structured production plan for video deliverables
+    production_plan: Optional[ProductionPlan] = None
 
     def summary(self) -> str:
         return (

@@ -28,8 +28,41 @@ from config import (
     USE_GENERATIVE_LAYOUT,
     AUGEO_PERSONA,
     DISPLAY_PRICING_IN_CHAT,
+    AUGEO_API_KEY,
 )
-from database import initialize_db, get_customer, get_or_create_customer, get_customer_by_phone, update_customer, add_credits, deduct_credit, get_credit_balance, add_flyer, log_conversation, get_flyer_count_for_customer, get_customers_for_retention, save_brand_memory, get_brand_memory, get_customer_by_referral_code, get_stats, get_connection, save_layout, get_recent_layouts, remember_customer_preferences
+from functools import wraps
+from database import (
+    initialize_db,
+    get_customer,
+    get_or_create_customer,
+    get_customer_by_phone,
+    update_customer,
+    add_credits,
+    deduct_credit,
+    get_credit_balance,
+    add_flyer,
+    log_conversation,
+    get_flyer_count_for_customer,
+    get_customers_for_retention,
+    save_brand_memory,
+    get_brand_memory,
+    get_customer_by_referral_code,
+    get_stats,
+    get_connection,
+    save_layout,
+    get_recent_layouts,
+    remember_customer_preferences,
+    create_usage_transaction,
+    get_usage_transactions_for_customer,
+    get_usage_transaction_by_job_id,
+    get_usage_transaction_by_idempotency_key,
+    get_latest_transcript_for_audio,
+    create_creative_job,
+    get_creative_job,
+    list_creative_jobs_for_customer,
+)
+from audio_provider import get_audio_provider
+from intelligence_provider import get_intelligence_provider
 from skill_registry import SkillRegistry
 from ai_service import generate_caption
 from flyer_generator import FlyerGenerator
@@ -47,6 +80,50 @@ skill_registry = SkillRegistry()
 social_agent = SocialAgent()
 brand_manager = BrandManager(database_module)
 initialize_db()
+
+
+def extract_audio_context(transcript: str) -> dict:
+    """Basic rule-based extraction of creative signals from a transcript."""
+    t = (transcript or '').lower()
+    intent = None
+    creative_signal = []
+    visual_reference = []
+    location = None
+    tone = None
+
+    if 'video' in t or 'film' in t or 'launch' in t:
+        intent = 'create_product_video'
+    if 'cinematic' in t or 'cinema' in t:
+        creative_signal.append('cinematic_transition')
+        tone = 'cinematic'
+    if 'bottle' in t or 'inside the bottle' in t:
+        visual_reference.append('bottle -> environment reveal')
+    if 'lagos' in t:
+        location = 'Lagos'
+    if 'energetic' in t or 'premium' in t:
+        tone = tone or 'energetic/premium'
+
+    return {
+        'intent': intent,
+        'creative_signal': creative_signal,
+        'visual_reference': visual_reference,
+        'location': location,
+        'tone': tone,
+    }
+
+
+def require_api_key(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # If no API key configured, allow requests for local/dev convenience
+        if not AUGEO_API_KEY:
+            return func(*args, **kwargs)
+        # Check header, query param, or form
+        key = request.headers.get('X-API-KEY') or request.args.get('api_key') or request.form.get('api_key')
+        if not key or key != AUGEO_API_KEY:
+            return jsonify({'error': 'unauthorized'}), 403
+        return func(*args, **kwargs)
+    return wrapper
 
 # ===================== UTILITIES =====================
 
@@ -559,6 +636,47 @@ def paystack_webhook():
     # Unrecognized payment reference — nothing to reconcile against
     print(f"Paystack webhook: unmatched reference {reference}, metadata={metadata}")
     return jsonify({'status': 'ok'}), 200
+
+
+@app.route('/usage/tx', methods=['POST'])
+@require_api_key
+def create_usage_tx():
+    """Create a usage transaction. Idempotent when `idempotency_key` provided."""
+    payload = request.get_json(silent=True) or {}
+    phone = payload.get('customer_phone')
+    if not phone:
+        return jsonify({'error': 'customer_phone is required'}), 400
+
+    idempotency_key = payload.get('idempotency_key')
+    if idempotency_key:
+        existing = get_usage_transaction_by_idempotency_key(idempotency_key)
+        if existing:
+            return jsonify({'status': 'exists', 'transaction': existing}), 200
+
+    txn_id = create_usage_transaction(
+        customer_phone=phone,
+        session_id=payload.get('session_id'),
+        job_id=payload.get('job_id'),
+        provider=payload.get('provider'),
+        operation=payload.get('operation'),
+        units=payload.get('units') or 0.0,
+        cost=payload.get('cost'),
+        currency=payload.get('currency') or 'NGN',
+        status=payload.get('status') or 'pending',
+        idempotency_key=idempotency_key,
+    )
+
+    return jsonify({'status': 'created', 'id': txn_id}), 201
+
+
+@app.route('/usage/tx', methods=['GET'])
+@require_api_key
+def list_usage_tx():
+    phone = request.args.get('phone')
+    if not phone:
+        return jsonify({'error': 'phone query parameter is required'}), 400
+    rows = get_usage_transactions_for_customer(phone, limit=200)
+    return jsonify({'transactions': rows}), 200
 
 
 @app.route('/whatsapp', methods=['POST'])
@@ -1343,5 +1461,198 @@ def admin_stats():
     return jsonify(get_stats())
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=FLASK_DEBUG)
+def require_api_key(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # If no API key configured, allow requests for local/dev convenience
+        if not AUGEO_API_KEY:
+            return func(*args, **kwargs)
+        # Check header, query param, or form
+        key = request.headers.get('X-API-KEY') or request.args.get('api_key') or request.form.get('api_key')
+        if not key or key != AUGEO_API_KEY:
+            return jsonify({'error': 'unauthorized'}), 403
+        return func(*args, **kwargs)
+    return wrapper
+
+
+def extract_audio_context(transcript: str) -> dict:
+    """Basic rule-based extraction of creative signals from a transcript."""
+    t = (transcript or '').lower()
+    intent = None
+    creative_signal = []
+    visual_reference = []
+    location = None
+    tone = None
+
+    if 'video' in t or 'film' in t or 'launch' in t:
+        intent = 'create_product_video'
+    if 'cinematic' in t or 'cinema' in t:
+        creative_signal.append('cinematic_transition')
+        tone = 'cinematic'
+    if 'bottle' in t or 'inside the bottle' in t:
+        visual_reference.append('bottle -> environment reveal')
+    if 'lagos' in t:
+        location = 'Lagos'
+    if 'energetic' in t or 'premium' in t:
+        tone = tone or 'energetic/premium'
+
+    return {
+        'intent': intent,
+        'creative_signal': creative_signal,
+        'visual_reference': visual_reference,
+        'location': location,
+        'tone': tone,
+    }
+
+
+@app.route('/audio/upload', methods=['POST'])
+@require_api_key
+def audio_upload():
+    """Accept a multipart `file` upload or `media_url` JSON body. Returns transcript and extracted context.
+
+    Required param: `customer_phone` (form field or JSON).
+    """
+    customer_phone = request.form.get('customer_phone') or (request.get_json(silent=True) or {}).get('customer_phone')
+    if not customer_phone:
+        return jsonify({'error': 'customer_phone is required'}), 400
+
+    file = request.files.get('file')
+    media_url = None
+    if not file:
+        payload = request.get_json(silent=True) or {}
+        media_url = payload.get('media_url')
+
+    output_dir = Path('uploads/audio')
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if file:
+        filename = f"audio_{customer_phone}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+        safe_path = output_dir / filename
+        file.save(safe_path)
+        mime = file.mimetype or 'audio/mpeg'
+        size = safe_path.stat().st_size
+    else:
+        if not media_url:
+            return jsonify({'error': 'file or media_url is required'}), 400
+        try:
+            resp = requests.get(media_url, stream=True, timeout=10)
+            resp.raise_for_status()
+            content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+            ext = '.mp3'
+            filename = f"audio_{customer_phone}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{ext}"
+            safe_path = output_dir / filename
+            with open(safe_path, 'wb') as fh:
+                for chunk in resp.iter_content(64 * 1024):
+                    fh.write(chunk)
+            mime = content_type
+            size = safe_path.stat().st_size
+        except Exception as e:
+            return jsonify({'error': f'could not download media_url: {e}'}), 400
+
+    # Basic validation
+    if size > 10 * 1024 * 1024:
+        return jsonify({'error': 'file too large (max 10MB)'}), 400
+    if not mime.startswith('audio'):
+        if not any(mime.startswith(pref) for pref in ('audio', 'application/octet-stream')):
+            return jsonify({'error': f'unexpected MIME type: {mime}'}), 400
+
+    # Persist audio record
+    audio_id = create_audio_message(customer_phone, str(safe_path), mime, size)
+
+    # Transcribe using configured provider (mock if no keys present)
+    provider = get_audio_provider()
+    try:
+        tx = provider.transcribe(str(safe_path))
+        transcript = tx.get('transcript')
+        confidence = tx.get('confidence')
+        duration = tx.get('duration_seconds')
+        metadata = tx.get('metadata')
+        provider_name = getattr(provider, '__class__', type(provider)).__name__
+        add_audio_transcript(audio_id, provider_name, transcript, confidence, json.dumps(metadata))
+        update_audio_message_status(audio_id, 'transcribed')
+
+        # extract creative context
+        context = extract_audio_context(transcript)
+
+        # log to conversations for audit
+        log_conversation(customer_phone, 'incoming', 'audio', transcript)
+
+        return jsonify({'status': 'ok', 'audio_id': audio_id, 'transcript': transcript, 'confidence': confidence, 'context': context}), 200
+    except Exception as e:
+        update_audio_message_status(audio_id, 'failed')
+        return jsonify({'error': f'transcription failed: {e}'}), 500
+
+
+    @app.route('/jobs/from_audio', methods=['POST'])
+    @require_api_key
+    def jobs_from_audio():
+        """Create a CreativeJob from an existing audio transcript.
+
+        Required JSON: `audio_id`, `customer_phone`, optional `job_type` (default: 'video')
+        """
+        payload = request.get_json(silent=True) or {}
+        audio_id = payload.get('audio_id')
+        customer_phone = payload.get('customer_phone')
+        if not audio_id or not customer_phone:
+            return jsonify({'error': 'audio_id and customer_phone are required'}), 400
+
+        transcript_row = get_latest_transcript_for_audio(audio_id)
+        if not transcript_row:
+            return jsonify({'error': 'transcript not found for audio_id'}), 404
+
+        transcript = transcript_row.get('transcript')
+        provider = transcript_row.get('provider')
+        job_type = payload.get('job_type') or 'video'
+        context = extract_audio_context(transcript)
+        brief = payload.get('brief') or (transcript[:800] if transcript else '')
+
+        # Use intelligence provider to generate creative direction and structured production_plan when possible
+        intelligence = get_intelligence_provider()
+        prompt = f"Create a concise creative direction and a JSON-serializable production_plan for a {job_type} based on this transcript:\n{brief}"
+        intel_resp = intelligence.analyze(prompt, context={"transcript": transcript, "provider": provider})
+
+        creative_direction = None
+        production_plan = None
+        try:
+            creative_direction = intel_resp.get('text')
+            # If provider returned structured plan in metadata, prefer it
+            metadata = intel_resp.get('metadata') or {}
+            production_plan = metadata.get('production_plan') if isinstance(metadata, dict) else None
+        except Exception:
+            creative_direction = intel_resp.get('text') if isinstance(intel_resp, dict) else None
+
+        job_id = create_creative_job(
+            customer_phone=customer_phone,
+            job_type=job_type,
+            brief=brief,
+            context_json=json.dumps(context),
+            direction=json.dumps(creative_direction) if creative_direction is not None else None,
+            production_plan_json=json.dumps(production_plan) if production_plan is not None else None,
+            provider=provider,
+            status='submitted',
+        )
+
+        return jsonify({'status': 'created', 'job_id': job_id}), 201
+
+
+    @app.route('/jobs/<int:job_id>', methods=['GET'])
+    @require_api_key
+    def get_job(job_id: int):
+        job = get_creative_job(job_id)
+        if not job:
+            return jsonify({'error': 'job not found'}), 404
+        return jsonify({'job': job}), 200
+
+
+    @app.route('/jobs', methods=['GET'])
+    @require_api_key
+    def list_jobs():
+        phone = request.args.get('phone')
+        if not phone:
+            return jsonify({'error': 'phone query parameter is required'}), 400
+        jobs = list_creative_jobs_for_customer(phone, limit=200)
+        return jsonify({'jobs': jobs}), 200
+
+
+    if __name__ == '__main__':
+        app.run(host='0.0.0.0', port=5000, debug=FLASK_DEBUG)
