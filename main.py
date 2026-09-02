@@ -63,6 +63,7 @@ from database import (
 )
 from audio_provider import get_audio_provider
 from intelligence_provider import get_intelligence_provider
+from payment_provider import get_payment_provider
 from skill_registry import SkillRegistry
 from ai_service import generate_caption
 from flyer_generator import FlyerGenerator
@@ -605,10 +606,12 @@ def get_referral_message(customer: dict) -> str:
 def paystack_webhook():
     signature = request.headers.get('X-Paystack-Signature', '')
     payload = request.data
-    if not verify_paystack_signature(payload, signature):
+    provider = get_payment_provider('paystack')
+    # Verify using provider abstraction
+    if not provider.verify_signature(payload, signature):
         return jsonify({'status': 'error', 'message': 'invalid signature'}), 403
 
-    event = request.get_json(silent=True) or {}
+    event = provider.parse_event(payload) or {}
     if event.get('event') != 'charge.success':
         return jsonify({'status': 'ignored'}), 200
 
