@@ -15,6 +15,7 @@ from creative.reasoning.judgment import (
 from creative.reasoning.revision import CreativeRevisionEngine
 from creative.reasoning.session import CreativeSession
 from creative.reasoning.production import CreativeProductionSpec
+from creative.reasoning.production import ProductionPlan, ShotSpec
 from creative.reasoning.provider_router import CreativeProviderRouter
 from creative.reasoning.quality_gate import CreativeQualityGate
 from creative.reasoning.memory import record_learning, record_rejection
@@ -145,6 +146,25 @@ class CreativeDirector:
                 # defensive: ignore brand failures and proceed
                 pass
 
+        # Create a minimal production plan skeleton for video deliverables
+        production_plan = None
+        if deliverable and 'video' in deliverable:
+            # create a single-shot default plan when no detailed plan is present
+            shot = ShotSpec(
+                id="shot-1",
+                description=(session.selected_direction and session.selected_direction.direction.concept) or "Primary shot",
+                duration_seconds=variation_count * 5.0,
+                visual_direction=(session.selected_direction and session.selected_direction.direction.visual_thesis) or None,
+            )
+            production_plan = ProductionPlan(
+                narrative=(session.brief or ""),
+                duration_seconds=shot.duration_seconds,
+                aspect_ratio=aspect_ratio,
+                shots=[shot],
+                visual_style=(session.selected_direction and session.selected_direction.direction.visual_thesis) or None,
+                references=[],
+            )
+
         spec = CreativeProductionSpec(
             deliverable=deliverable,
             aspect_ratio=aspect_ratio,
@@ -156,6 +176,7 @@ class CreativeDirector:
             prompt=None,
             variation_count=variation_count,
             provider_hints=provider_hints,
+            production_plan=production_plan,
         )
         return spec
 

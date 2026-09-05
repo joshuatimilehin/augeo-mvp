@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS customers (
     preferred_graphic_skill TEXT,
     preferred_prompt_skill TEXT,
     preferred_category_skill TEXT,
+    preferred_tone TEXT,
+    preferred_category_focus TEXT,
     last_flyer_at TEXT,
     last_engagement_at TEXT,
     reminder_opt_out BOOLEAN DEFAULT 0,
@@ -143,6 +145,69 @@ CREATE TABLE IF NOT EXISTS brand_memory (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS usage_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_phone TEXT,
+    session_id TEXT,
+    job_id TEXT,
+    provider TEXT,
+    operation TEXT,
+    units REAL,
+    cost REAL,
+    currency TEXT DEFAULT 'NGN',
+    status TEXT DEFAULT 'pending',
+    idempotency_key TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audio_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_phone TEXT,
+    file_path TEXT,
+    mime TEXT,
+    size_bytes INTEGER,
+    duration_seconds REAL,
+    status TEXT DEFAULT 'received',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audio_transcripts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    audio_message_id INTEGER,
+    provider TEXT,
+    transcript TEXT,
+    confidence REAL,
+    metadata_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (audio_message_id) REFERENCES audio_messages(id)
+);
+
+CREATE TABLE IF NOT EXISTS creative_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_phone TEXT,
+    type TEXT,
+    brief TEXT,
+    context_json TEXT,
+    direction TEXT,
+    production_plan_json TEXT,
+    assets_json TEXT,
+    constraints_json TEXT,
+    provider TEXT,
+    status TEXT DEFAULT 'pending',
+    outputs_json TEXT,
+    intent TEXT,
+    subject TEXT,
+    audience TEXT,
+    desired_effect TEXT,
+    medium TEXT,
+    format TEXT,
+    references_json TEXT,
+    approval_state TEXT DEFAULT 'pending',
+    notes_json TEXT,
+    memory_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -152,11 +217,68 @@ def get_connection():
     return conn
 
 
+def ensure_creative_job_columns():
+    with closing(get_connection()) as conn:
+        existing = conn.execute("PRAGMA table_info(creative_jobs)").fetchall()
+        existing_names = {row[1] for row in existing}
+        for column_sql in [
+            "ALTER TABLE creative_jobs ADD COLUMN production_plan_json TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN intent TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN subject TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN audience TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN desired_effect TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN medium TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN format TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN references_json TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN approval_state TEXT DEFAULT 'pending'",
+            "ALTER TABLE creative_jobs ADD COLUMN notes_json TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN memory_json TEXT",
+        ]:
+            column_name = column_sql.split("ADD COLUMN ", 1)[1].split(" ", 1)[0]
+            if column_name in existing_names:
+                continue
+            try:
+                conn.execute(column_sql)
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+
+
 def initialize_db():
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with closing(get_connection()) as conn:
         conn.executescript(SCHEMA)
+        for column_sql in [
+            "ALTER TABLE customers ADD COLUMN preferred_tone TEXT",
+            "ALTER TABLE customers ADD COLUMN preferred_category_focus TEXT",
+        ]:
+            try:
+                conn.execute(column_sql)
+            except sqlite3.OperationalError:
+                pass
         conn.commit()
+    ensure_creative_job_columns()
+
+
+def remember_customer_preferences(phone, *, tone=None, category_focus=None, business_name=None, graphic_skill=None, prompt_skill=None, category_skill=None):
+    payload = {}
+    if tone is not None:
+        payload['preferred_tone'] = tone
+    if category_focus is not None:
+        payload['preferred_category_focus'] = category_focus
+    if business_name is not None:
+        payload['business_name'] = business_name
+    if graphic_skill is not None:
+        payload['preferred_graphic_skill'] = graphic_skill
+    if prompt_skill is not None:
+        payload['preferred_prompt_skill'] = prompt_skill
+    if category_skill is not None:
+        payload['preferred_category_skill'] = category_skill
+    if not payload:
+        return None
+    get_or_create_customer(phone)
+    update_customer(phone, **payload)
+    return get_customer_by_phone(phone)
 
 
 def get_or_create_customer(phone, name=None):
@@ -367,6 +489,132 @@ def get_stats():
         cur = conn.execute('SELECT COUNT(*) as count FROM customers WHERE credits_remaining > 0')
         stats['customers_with_credits'] = cur.fetchone()['count']
         return stats
+
+
+def create_usage_transaction(customer_phone: str, session_id: str = None, job_id: str = None,
+                             provider: str = None, operation: str = None, units: float = 0.0,
+                             cost: float = None, currency: str = 'NGN', status: str = 'pending',
+                             idempotency_key: str = None) -> int:
+    """Insert a usage ledger entry and return its row id."""
+    with closing(get_connection()) as conn:
+        cur = conn.execute(
+            'INSERT INTO usage_transactions (customer_phone, session_id, job_id, provider, operation, units, cost, currency, status, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (customer_phone, session_id, job_id, provider, operation, units, cost, currency, status, idempotency_key)
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def update_usage_transaction_status(txn_id: int, status: str, cost: float = None) -> None:
+    """Update status (and optionally cost) for a usage transaction."""
+    with closing(get_connection()) as conn:
+        if cost is not None:
+            conn.execute('UPDATE usage_transactions SET status = ?, cost = ? WHERE id = ?', (status, cost, txn_id))
+        else:
+            conn.execute('UPDATE usage_transactions SET status = ? WHERE id = ?', (status, txn_id))
+        conn.commit()
+
+
+def get_usage_transactions_for_customer(phone: str, limit: int = 100) -> list:
+    with closing(get_connection()) as conn:
+        cur = conn.execute('SELECT * FROM usage_transactions WHERE customer_phone = ? ORDER BY id DESC LIMIT ?', (phone, limit))
+        return [dict(row) for row in cur.fetchall()]
+
+
+def get_usage_transaction_by_job_id(job_id: str):
+    with closing(get_connection()) as conn:
+        cur = conn.execute('SELECT * FROM usage_transactions WHERE job_id = ?', (job_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def get_usage_transaction_by_idempotency_key(idempotency_key: str):
+    with closing(get_connection()) as conn:
+        cur = conn.execute('SELECT * FROM usage_transactions WHERE idempotency_key = ? LIMIT 1', (idempotency_key,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def create_audio_message(customer_phone: str, file_path: str, mime: str, size_bytes: int, duration_seconds: float = None, status: str = 'received') -> int:
+    with closing(get_connection()) as conn:
+        cur = conn.execute(
+            'INSERT INTO audio_messages (customer_phone, file_path, mime, size_bytes, duration_seconds, status) VALUES (?, ?, ?, ?, ?, ?)',
+            (customer_phone, file_path, mime, size_bytes, duration_seconds, status)
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def update_audio_message_status(audio_id: int, status: str) -> None:
+    with closing(get_connection()) as conn:
+        conn.execute('UPDATE audio_messages SET status = ? WHERE id = ?', (status, audio_id))
+        conn.commit()
+
+
+def add_audio_transcript(audio_message_id: int, provider: str, transcript: str, confidence: float = None, metadata_json: str = None) -> int:
+    with closing(get_connection()) as conn:
+        cur = conn.execute(
+            'INSERT INTO audio_transcripts (audio_message_id, provider, transcript, confidence, metadata_json) VALUES (?, ?, ?, ?, ?)',
+            (audio_message_id, provider, transcript, confidence, metadata_json)
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_audio_messages_for_customer(phone: str, limit: int = 50) -> list:
+    with closing(get_connection()) as conn:
+        cur = conn.execute('SELECT * FROM audio_messages WHERE customer_phone = ? ORDER BY id DESC LIMIT ?', (phone, limit))
+        return [dict(row) for row in cur.fetchall()]
+def get_latest_transcript_for_audio(audio_message_id: int):
+    with closing(get_connection()) as conn:
+        cur = conn.execute(
+            'SELECT * FROM audio_transcripts WHERE audio_message_id = ? ORDER BY id DESC LIMIT 1',
+            (audio_message_id,)
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def create_creative_job(customer_phone: str, job_type: str, brief: str, context_json: str = None,
+                        direction: str = None, production_plan_json: str = None, assets_json: str = None, constraints_json: str = None,
+                        provider: str = None, status: str = 'pending',
+                        intent: str = None, subject: str = None, audience: str = None,
+                        desired_effect: str = None, medium: str = None, format: str = None,
+                        references_json: str = None, approval_state: str = 'pending',
+                        notes_json: str = None, memory_json: str = None) -> int:
+    ensure_creative_job_columns()
+    with closing(get_connection()) as conn:
+        cur = conn.execute(
+            '''
+            INSERT INTO creative_jobs (
+                customer_phone, type, brief, context_json, direction, production_plan_json,
+                assets_json, constraints_json, provider, status, intent, subject, audience,
+                desired_effect, medium, format, references_json, approval_state, notes_json,
+                memory_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                customer_phone, job_type, brief, context_json, direction, production_plan_json,
+                assets_json, constraints_json, provider, status, intent, subject, audience,
+                desired_effect, medium, format, references_json, approval_state, notes_json,
+                memory_json,
+            )
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_creative_job(job_id: int):
+    with closing(get_connection()) as conn:
+        cur = conn.execute('SELECT * FROM creative_jobs WHERE id = ?', (job_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def list_creative_jobs_for_customer(phone: str, limit: int = 50) -> list:
+    with closing(get_connection()) as conn:
+        cur = conn.execute('SELECT * FROM creative_jobs WHERE customer_phone = ? ORDER BY id DESC LIMIT ?', (phone, limit))
+        return [dict(row) for row in cur.fetchall()]
 
 def record_prompt_evaluation(
     prompt_id,

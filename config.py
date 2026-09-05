@@ -7,6 +7,12 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+# Primary intelligence model for Augeo: Astra GPT 6.
+# Fallback model: Anthropic Fable 5.1 when the primary is unavailable.
+INTELLIGENCE_DEFAULT_MODEL = os.getenv('INTELLIGENCE_DEFAULT_MODEL', os.getenv('ASTRA_MODEL', 'astra-gpt-6'))
+INTELLIGENCE_FALLBACK_MODEL = os.getenv('INTELLIGENCE_FALLBACK_MODEL', os.getenv('FABLE_MODEL', 'claude-fable-5-1'))
+
 # Kaspo image provider
 KASPO_API_KEY = os.getenv("KASPO_API_KEY")
 KASPO_BASE_URL = os.getenv("KASPO_BASE_URL")
@@ -25,12 +31,12 @@ FLASK_DEBUG = os.getenv("FLASK_ENV", "production") == "development"
 # Brand voice and product boundaries
 AUGEO_PERSONA = {
     "name": "Augeo",
-    "voice": "confident, clear, sales-aware, and calm",
+    "voice": "confident, clear, culturally aware, creative-led, and calm",
     "pricing_visibility": "hidden_in_chat_by_default",
     "default_offer_style": "offer-led, not price-led",
-    "core_business": "contextual creative production for people, creators, freelancers, and businesses",
-    "deliverables": ["flyers", "product visuals", "UGC videos", "launch films", "brand social content", "creative concepts"],
-    "customer_types": ["creator", "freelancer", "small business", "brand"],
+    "core_business": "creative companion and production engine for culture, entertainment, sports, creators, freelancers, and businesses",
+    "deliverables": ["flyers", "product visuals", "UGC videos", "launch films", "brand social content", "campaign concepts", "entertainment reinterpretations", "creative directions"],
+    "customer_types": ["creator", "freelancer", "small business", "brand", "culture-led project", "sports concept"],
     "business_context_is_optional": True,
 }
 
@@ -65,6 +71,9 @@ OPENAI_VIDEO_MODEL = os.getenv("OPENAI_VIDEO_MODEL", "sora-2")
 VIDEO_PROVIDER = os.getenv("VIDEO_PROVIDER", "runway")
 RUNWAYML_API_SECRET = os.getenv("RUNWAYML_API_SECRET")
 RUNWAY_VIDEO_MODEL = os.getenv("RUNWAY_VIDEO_MODEL", "gen4.5")
+
+# Optional API key to protect internal endpoints. If unset, endpoints remain open for local testing.
+AUGEO_API_KEY = os.getenv('AUGEO_API_KEY')
 
 # Creative video providers
 SEEDANCE_API_KEY = os.getenv("SEEDANCE_API_KEY")
