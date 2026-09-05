@@ -196,6 +196,16 @@ CREATE TABLE IF NOT EXISTS creative_jobs (
     provider TEXT,
     status TEXT DEFAULT 'pending',
     outputs_json TEXT,
+    intent TEXT,
+    subject TEXT,
+    audience TEXT,
+    desired_effect TEXT,
+    medium TEXT,
+    format TEXT,
+    references_json TEXT,
+    approval_state TEXT DEFAULT 'pending',
+    notes_json TEXT,
+    memory_json TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 """
@@ -207,6 +217,33 @@ def get_connection():
     return conn
 
 
+def ensure_creative_job_columns():
+    with closing(get_connection()) as conn:
+        existing = conn.execute("PRAGMA table_info(creative_jobs)").fetchall()
+        existing_names = {row[1] for row in existing}
+        for column_sql in [
+            "ALTER TABLE creative_jobs ADD COLUMN production_plan_json TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN intent TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN subject TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN audience TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN desired_effect TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN medium TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN format TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN references_json TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN approval_state TEXT DEFAULT 'pending'",
+            "ALTER TABLE creative_jobs ADD COLUMN notes_json TEXT",
+            "ALTER TABLE creative_jobs ADD COLUMN memory_json TEXT",
+        ]:
+            column_name = column_sql.split("ADD COLUMN ", 1)[1].split(" ", 1)[0]
+            if column_name in existing_names:
+                continue
+            try:
+                conn.execute(column_sql)
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+
+
 def initialize_db():
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with closing(get_connection()) as conn:
@@ -214,13 +251,13 @@ def initialize_db():
         for column_sql in [
             "ALTER TABLE customers ADD COLUMN preferred_tone TEXT",
             "ALTER TABLE customers ADD COLUMN preferred_category_focus TEXT",
-                "ALTER TABLE creative_jobs ADD COLUMN production_plan_json TEXT",
         ]:
             try:
                 conn.execute(column_sql)
             except sqlite3.OperationalError:
                 pass
         conn.commit()
+    ensure_creative_job_columns()
 
 
 def remember_customer_preferences(phone, *, tone=None, category_focus=None, business_name=None, graphic_skill=None, prompt_skill=None, category_skill=None):
@@ -540,11 +577,28 @@ def get_latest_transcript_for_audio(audio_message_id: int):
 
 def create_creative_job(customer_phone: str, job_type: str, brief: str, context_json: str = None,
                         direction: str = None, production_plan_json: str = None, assets_json: str = None, constraints_json: str = None,
-                        provider: str = None, status: str = 'pending') -> int:
+                        provider: str = None, status: str = 'pending',
+                        intent: str = None, subject: str = None, audience: str = None,
+                        desired_effect: str = None, medium: str = None, format: str = None,
+                        references_json: str = None, approval_state: str = 'pending',
+                        notes_json: str = None, memory_json: str = None) -> int:
+    ensure_creative_job_columns()
     with closing(get_connection()) as conn:
         cur = conn.execute(
-            'INSERT INTO creative_jobs (customer_phone, type, brief, context_json, direction, production_plan_json, assets_json, constraints_json, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            (customer_phone, job_type, brief, context_json, direction, production_plan_json, assets_json, constraints_json, provider, status)
+            '''
+            INSERT INTO creative_jobs (
+                customer_phone, type, brief, context_json, direction, production_plan_json,
+                assets_json, constraints_json, provider, status, intent, subject, audience,
+                desired_effect, medium, format, references_json, approval_state, notes_json,
+                memory_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                customer_phone, job_type, brief, context_json, direction, production_plan_json,
+                assets_json, constraints_json, provider, status, intent, subject, audience,
+                desired_effect, medium, format, references_json, approval_state, notes_json,
+                memory_json,
+            )
         )
         conn.commit()
         return cur.lastrowid

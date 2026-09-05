@@ -60,6 +60,9 @@ from database import (
     create_creative_job,
     get_creative_job,
     list_creative_jobs_for_customer,
+    create_audio_message,
+    add_audio_transcript,
+    update_audio_message_status,
 )
 from audio_provider import get_audio_provider
 from intelligence_provider import get_intelligence_provider

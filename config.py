@@ -8,8 +8,10 @@ BASE_DIR = Path(__file__).resolve().parent
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
-# Default intelligence model for Augeo (Anthropic Fable by default)
-INTELLIGENCE_DEFAULT_MODEL = os.getenv('INTELLIGENCE_DEFAULT_MODEL', 'claude-fable-5-1')
+# Primary intelligence model for Augeo: Astra GPT 6.
+# Fallback model: Anthropic Fable 5.1 when the primary is unavailable.
+INTELLIGENCE_DEFAULT_MODEL = os.getenv('INTELLIGENCE_DEFAULT_MODEL', os.getenv('ASTRA_MODEL', 'astra-gpt-6'))
+INTELLIGENCE_FALLBACK_MODEL = os.getenv('INTELLIGENCE_FALLBACK_MODEL', os.getenv('FABLE_MODEL', 'claude-fable-5-1'))
 
 # Kaspo image provider
 KASPO_API_KEY = os.getenv("KASPO_API_KEY")
