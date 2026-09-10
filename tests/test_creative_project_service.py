@@ -23,9 +23,7 @@ def test_service_retrieves_project():
         title="Campaign",
     )
 
-    retrieved = service.get_project(project.id)
-
-    assert retrieved is project
+    assert service.get_project(project.id) is project
 
 
 def test_service_adds_asset():
