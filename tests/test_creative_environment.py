@@ -60,3 +60,28 @@ def test_environment_adapts_to_image_project():
     assert result["mode"] == "image"
     assert "image_generation" in result["tools"]
     assert "layout" in result["tools"]
+
+def test_environment_adapts_from_intent():
+    service = CreativeProjectService()
+
+    project = service.create_project(
+        owner_id="user_123",
+        title="Campaign",
+    )
+
+    environment = CreativeEnvironment(service)
+
+    result = environment.adapt(
+        project.id,
+        {
+            "medium": "video",
+            "goal": "promotion",
+            "style": "cinematic",
+        },
+    )
+
+    assert result["adapted"] is True
+    assert result["mode"] == "video"
+    assert result["intent"]["medium"] == "video"
+    assert "storyboard" in result["tools"]
+    assert "timeline" in result["tools"]

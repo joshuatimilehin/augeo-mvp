@@ -33,6 +33,26 @@ class CreativeEnvironment:
             "suggestions": self._suggestions_for(medium),
         }
 
+    def adapt(self, project_id: str, intent: dict[str, Any]) -> dict[str, Any]:
+        project = self.project_service.get_project(project_id)
+
+        medium = intent.get("medium", "general")
+        goal = intent.get("goal")
+
+        project.context = {
+            "medium": medium,
+            "goal": goal,
+            "intent": intent,
+        }
+
+        environment = self.build(project_id)
+
+        environment["adapted"] = True
+        environment["intent"] = intent
+
+        return environment
+
+
     def _detect_medium(self, project) -> str:
         context = project.context
 
