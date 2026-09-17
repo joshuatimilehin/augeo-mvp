@@ -48,4 +48,3 @@ class LegacyImageProvider(ImageGenerationProvider):
         }
 
 
-LegacyProvider = LegacyImageProvider

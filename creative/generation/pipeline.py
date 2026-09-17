@@ -31,7 +31,7 @@ class GenerationPipeline:
 
     def _get_fallback_provider(self):
         if self.fallback_provider is None:
-            from creative.image.legacy import LegacyProvider
+            from creative.image.legacy import LegacyImageProvider
 
             self.fallback_provider = LegacyProvider()
 
