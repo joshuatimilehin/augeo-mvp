@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
 
-import database
+from creative.persistence.sqlite import (
+    SQLitePromptPerformanceStore,
+)
 
 from creative.prompts.library import PromptLibrary
 from creative.prompts.scoring import (
@@ -36,18 +38,26 @@ class GenerationEvaluator:
 
     The prompt definition remains in PromptLibrary.
 
-    Historical performance is persisted in SQLite.
+    Historical performance is persisted through the
+    PromptPerformanceStore abstraction.
     """
 
-    def __init__(self, library: PromptLibrary):
+    def __init__(
+        self,
+        library: PromptLibrary,
+        performance_store=None,
+    ):
         self.library = library
         self.scorer = PromptScorer()
+        self.performance_store = (
+            performance_store
+            or SQLitePromptPerformanceStore()
+        )
 
     def evaluate(
         self,
         evaluation: GenerationEvaluation,
     ) -> float:
-
         prompt_evaluation = PromptEvaluation(
             prompt_id=evaluation.prompt_id,
             visual_quality=evaluation.visual_quality,
@@ -62,8 +72,7 @@ class GenerationEvaluator:
             prompt_evaluation
         )
 
-        # Persist the learning signal.
-        database.record_prompt_evaluation(
+        self.performance_store.record_evaluation(
             prompt_id=evaluation.prompt_id,
             score=score,
             customer_phone=evaluation.customer_phone,
@@ -76,10 +85,20 @@ class GenerationEvaluator:
             notes=evaluation.notes,
         )
 
-        # Keep the in-memory library synchronized.
         self.library.record_evaluation(
             evaluation.prompt_id,
             score,
         )
 
         return score
+
+    def get_prompt_performance(
+        self,
+        prompt_id: str,
+    ):
+        return self.performance_store.get_prompt_performance(
+            prompt_id
+        )
+
+    def get_all_prompt_performance(self):
+        return self.performance_store.get_all_prompt_performance()
