@@ -7,79 +7,37 @@ class CreativeAction:
     action_type: str
     parameters: dict[str, Any] = field(default_factory=dict)
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "action_type": self.action_type,
+            "parameters": self.parameters,
+        }
+
 
 @dataclass
 class ActionPlan:
     actions: list[CreativeAction] = field(default_factory=list)
 
-    def add(self, action: CreativeAction) -> None:
+    def add(
+        self,
+        action_type: str,
+        parameters: dict[str, Any] | None = None,
+    ) -> CreativeAction:
+        action = CreativeAction(
+            action_type=action_type,
+            parameters=parameters or {},
+        )
+
         self.actions.append(action)
+
+        return action
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "actions": [
-                {
-                    "action_type": action.action_type,
-                    "parameters": action.parameters,
-                }
+                action.to_dict()
                 for action in self.actions
             ]
         }
 
 
-class CreativeActionExecutor:
-    def __init__(self, project_service):
-        self.project_service = project_service
-
-    def execute(self, project_id: str, action: CreativeAction):
-        project = self.project_service.get_project(project_id)
-
-        if action.action_type == "create_image":
-            node = self.project_service.add_node(
-                project_id,
-                "image_generation",
-                configuration=action.parameters,
-            )
-            return {
-                "action": action.action_type,
-                "status": "completed",
-                "node_id": node.id,
-            }
-
-        if action.action_type == "create_video":
-            node = self.project_service.add_node(
-                project_id,
-                "video_generation",
-                configuration=action.parameters,
-            )
-            return {
-                "action": action.action_type,
-                "status": "completed",
-                "node_id": node.id,
-            }
-
-        if action.action_type == "create_copy":
-            node = self.project_service.add_node(
-                project_id,
-                "copy_generation",
-                configuration=action.parameters,
-            )
-            return {
-                "action": action.action_type,
-                "status": "completed",
-                "node_id": node.id,
-            }
-
-        if action.action_type == "clarify":
-            return {
-                "action": action.action_type,
-                "status": "needs_clarification",
-                "question": action.parameters.get(
-                    "question",
-                    "What would you like to create?",
-                ),
-            }
-
-        raise ValueError(
-            f"Unsupported creative action: {action.action_type}"
-        )

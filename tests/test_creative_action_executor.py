@@ -1,9 +1,9 @@
 from creative.experience.action_executor import CreativeActionExecutor
+from creative.experience.actions import CreativeAction
 from creative.project_service import CreativeProjectService
-from creative.workflow_executor import CreativeWorkflowExecutor
 
 
-def test_action_executor_turns_plan_into_workflow():
+def test_action_executor_turns_action_into_workflow_node():
     service = CreativeProjectService()
 
     project = service.create_project(
@@ -11,21 +11,26 @@ def test_action_executor_turns_plan_into_workflow():
         title="Launch Campaign",
     )
 
-    executor = CreativeActionExecutor(
-        CreativeWorkflowExecutor()
+    executor = CreativeActionExecutor(service)
+
+    result = executor.execute(
+        project.id,
+        CreativeAction(
+            action_type="create_image",
+            parameters={
+                "style": "premium",
+                "purpose": "launch",
+            },
+        ),
     )
 
-    results = executor.execute(
-        project,
-        [
-            {
-                "action_type": "create_image",
-            }
-        ],
-    )
+    assert result["status"] == "planned"
+    assert result["action_type"] == "create_image"
+    assert result["node_type"] == "image_generation"
 
-    assert len(results) == 1
-    assert results[0]["action_type"] == "create_image"
-    assert results[0]["node_type"] == "image_generation"
+    assert len(project.workflow_nodes) == 1
 
-    assert project.workflow_nodes[0].status == "completed"
+    node = project.workflow_nodes[0]
+
+    assert node.type == "image_generation"
+    assert node.status == "pending"

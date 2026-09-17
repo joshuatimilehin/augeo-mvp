@@ -1,14 +1,16 @@
 from creative.providers.creative import (
-    MockImageProvider,
     MockVideoProvider,
     MockTextProvider,
+)
+from creative.providers.image_generation import (
+    ImageGenerationProvider,
 )
 
 
 class ProviderRegistry:
     def __init__(self):
         self.providers = {
-            "image_generation": MockImageProvider(),
+            "image_generation": ImageGenerationProvider(),
             "video_generation": MockVideoProvider(),
             "text_generation": MockTextProvider(),
             "copy_generation": MockTextProvider(),

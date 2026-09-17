@@ -7,16 +7,6 @@ class CreativeProvider(ABC):
         raise NotImplementedError
 
 
-class MockImageProvider(CreativeProvider):
-    def execute(self, node, inputs):
-        return {
-            "type": "image",
-            "provider": "mock",
-            "node_id": node.id,
-            "source": "mock://generated-image",
-        }
-
-
 class MockVideoProvider(CreativeProvider):
     def execute(self, node, inputs):
         return {

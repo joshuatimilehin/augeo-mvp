@@ -30,6 +30,10 @@ class CreativeWorkflowExecutor:
                     continue
 
                 inputs = dict(node.inputs)
+                inputs.setdefault(
+                    "project_context",
+                    project.context or {},
+                )
 
                 for edge in project.workflow_edges:
                     if edge.target_node_id != node.id:
@@ -48,6 +52,7 @@ class CreativeWorkflowExecutor:
 
                 node.outputs = result
                 outputs[node.id] = result
+
                 node.status = "completed"
 
                 asset_type = result.get("type")

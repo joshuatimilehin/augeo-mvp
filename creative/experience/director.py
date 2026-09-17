@@ -1,9 +1,6 @@
 from typing import Any, Dict
 
-from creative.experience.actions import (
-    ActionPlan,
-    CreativeAction,
-)
+from creative.experience.actions import ActionPlan
 from creative.experience.intent import CreativeIntent
 from creative.experience.session import ExperienceSession
 
@@ -28,40 +25,52 @@ class CreativeDirector:
             confidence=0.5,
         )
 
-        if any(word in request_lower for word in [
-            "video",
-            "film",
-            "reel",
-            "animation",
-        ]):
+        if any(
+            word in request_lower
+            for word in [
+                "video",
+                "film",
+                "reel",
+                "animation",
+            ]
+        ):
             intent.medium = "video"
 
-        elif any(word in request_lower for word in [
-            "image",
-            "poster",
-            "flyer",
-            "visual",
-            "graphic",
-        ]):
+        elif any(
+            word in request_lower
+            for word in [
+                "image",
+                "poster",
+                "flyer",
+                "visual",
+                "graphic",
+            ]
+        ):
             intent.medium = "image"
 
-        if any(word in request_lower for word in [
-            "launch",
-            "campaign",
-            "advert",
-            "ad",
-            "promo",
-        ]):
+        if any(
+            word in request_lower
+            for word in [
+                "launch",
+                "campaign",
+                "advert",
+                "ad",
+                "promo",
+            ]
+        ):
             intent.goal = "promotion"
 
-        if any(word in request_lower for word in [
-            "luxury",
-            "premium",
-            "cinematic",
-            "minimal",
-            "editorial",
-            "bold",
-        ]):
+        if any(
+            word in request_lower
+            for word in [
+                "luxury",
+                "premium",
+                "cinematic",
+                "minimal",
+                "editorial",
+                "bold",
+            ]
+        ):
             intent.style = " ".join(
                 word
                 for word in [
@@ -77,7 +86,11 @@ class CreativeDirector:
 
         intent.context["session_id"] = session.session_id
 
-        if intent.medium or intent.goal or intent.style:
+        if (
+            intent.medium
+            or intent.goal
+            or intent.style
+        ):
             intent.confidence = 0.8
 
         return intent
@@ -91,36 +104,30 @@ class CreativeDirector:
 
         if intent.medium == "image":
             plan.add(
-                CreativeAction(
-                    action_type="create_image",
-                    parameters={
-                        "goal": intent.goal,
-                        "style": intent.style,
-                        "context": intent.context,
-                    },
-                )
+                "create_image",
+                {
+                    "goal": intent.goal,
+                    "style": intent.style,
+                    "context": intent.context,
+                },
             )
 
         elif intent.medium == "video":
             plan.add(
-                CreativeAction(
-                    action_type="create_video",
-                    parameters={
-                        "goal": intent.goal,
-                        "style": intent.style,
-                        "context": intent.context,
-                    },
-                )
+                "create_video",
+                {
+                    "goal": intent.goal,
+                    "style": intent.style,
+                    "context": intent.context,
+                },
             )
 
         else:
             plan.add(
-                CreativeAction(
-                    action_type="clarify",
-                    parameters={
-                        "question": "What would you like to create?"
-                    },
-                )
+                "clarify",
+                {
+                    "question": "What would you like to create?",
+                },
             )
 
         return plan
@@ -132,11 +139,19 @@ class CreativeDirector:
     ) -> Dict[str, Any]:
         session.add_message("user", request)
 
-        intent = self.understand(request, session)
+        intent = self.understand(
+            request,
+            session,
+        )
 
-        session.set_intent(intent.to_dict())
+        session.set_intent(
+            intent.to_dict()
+        )
 
-        plan = self.plan(intent, session)
+        plan = self.plan(
+            intent,
+            session,
+        )
 
         session.update_state(
             last_request=request,
